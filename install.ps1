@@ -187,4 +187,4 @@ if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
 )
 
 # ── Lancement immediat et silencieux ──────────────────────────────────────────
-Start-Process $pythonw -ArgumentList "`"$INSTALL_DIR\svc.py`"" -WorkingDirectory $INSTALL_DIR
+Start-Process $pythonw -ArgumentList "`"$INSTALL_DIR\svc.py`"" -WorkingDirectory $INSTALL_DIR -WindowStyle Hidden
