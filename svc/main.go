@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 	"unsafe"
@@ -144,6 +145,10 @@ func handleAudio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
+	volume := 100
+	if v, err := strconv.Atoi(r.FormValue("volume")); err == nil && v >= 0 && v <= 100 {
+		volume = v
+	}
 	ext := filepath.Ext(header.Filename)
 	if ext == "" {
 		ext = ".mp3"
@@ -151,7 +156,7 @@ func handleAudio(w http.ResponseWriter, r *http.Request) {
 	tmp, _ := os.CreateTemp("", "audio*"+ext)
 	io.Copy(tmp, file)
 	tmp.Close()
-	go playAudio(tmp.Name())
+	go playAudio(tmp.Name(), volume)
 	jsonOK(w)
 }
 
@@ -187,9 +192,10 @@ func setWallpaper(path string) {
 	procSPI.Call(0x0014, 0, uintptr(unsafe.Pointer(ptr)), 3)
 }
 
-func playAudio(path string) {
+func playAudio(path string, volume int) {
 	abs, _ := filepath.Abs(path)
-	mciSend(fmt.Sprintf(`open "%s" type mpegvideo alias media`, abs))
+	mciSend(fmt.Sprintf(`open "%s" alias media`, abs))
+	mciSend(fmt.Sprintf(`setaudio media volume to %d`, volume*10))
 	mciSend("play media wait")
 	mciSend("close media")
 	os.Remove(path)

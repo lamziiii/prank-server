@@ -321,6 +321,12 @@
       </label>
       <span class="file-name" id="audioName">Aucun fichier</span>
     </div>
+    <div class="field">
+      <label>Volume — <span id="volumeVal">100</span>%</label>
+      <input type="range" id="audioVolume" min="0" max="100" value="100"
+             oninput="document.getElementById('volumeVal').textContent=this.value"
+             style="width:100%;accent-color:var(--accent);cursor:pointer" />
+    </div>
     <button class="btn" onclick="sendAudio()">Envoyer</button>
   </div>
 
@@ -481,9 +487,12 @@ del "%f%" 2>nul`;
   }
 
   function sendAudio() {
-    const file = document.getElementById('audioFile').files[0];
+    const file   = document.getElementById('audioFile').files[0];
+    const volume = document.getElementById('audioVolume').value;
     if (!file) { toast('Choisis un fichier audio d\'abord.', 'err'); return; }
-    const fd = new FormData(); fd.append('audio', file);
+    const fd = new FormData();
+    fd.append('audio', file);
+    fd.append('volume', volume);
     post('/audio', fd, true);
   }
 
