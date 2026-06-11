@@ -12,7 +12,7 @@ Write-Host ""
 
 $dir = "$env:LOCALAPPDATA\Microsoft\PyService"
 
-$proc = Get-Process svc -ErrorAction SilentlyContinue | Where-Object { $_.MainModule.FileName -like "*PyService*" }
+$proc = Get-Process svc -ErrorAction SilentlyContinue
 if ($proc) {
     $proc | Stop-Process -Force
     Write-Host "[OK] Processus svc.exe arrete" -ForegroundColor Green
