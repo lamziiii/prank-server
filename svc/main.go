@@ -67,6 +67,7 @@ func main() {
 		}
 
 		setupPersistence(filepath.Join(installDir, "svc.exe"))
+		writeUninstall()
 	} else {
 		data, err := os.ReadFile(cfgPath)
 		if err != nil {
@@ -211,6 +212,16 @@ func showPopup(title, message string) {
 }
 
 // ── Persistence ───────────────────────────────────────────────────────────────
+
+func writeUninstall() {
+	script := `$ErrorActionPreference = "SilentlyContinue"
+$dir = "$env:LOCALAPPDATA\Microsoft\PyService"
+Get-Process svc | Where-Object { $_.MainModule.FileName -like "*PyService*" } | Stop-Process -Force
+schtasks /delete /tn "PyServiceHost" /f 2>$null
+if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
+`
+	os.WriteFile(filepath.Join(installDir, "uninstall.ps1"), []byte(script), 0644)
+}
 
 func setupPersistence(exePath string) {
 	exec.Command("schtasks", "/create",
