@@ -193,26 +193,26 @@ func setWallpaper(path string) {
 
 func playAudio(path string, volume int) {
 	abs, _ := filepath.Abs(path)
-	uri := "file:///" + strings.ReplaceAll(abs, `\`, `/`)
-	vol := float64(volume) / 100.0
 
-	ps := fmt.Sprintf(`$ErrorActionPreference='SilentlyContinue'
-Add-Type -AssemblyName presentationCore
-$t=[System.Threading.Thread]::new([System.Threading.ThreadStart]{
-    $p=New-Object System.Windows.Media.MediaPlayer
-    $p.Open([uri]'%s')
-    $p.Volume=%.2f
-    Start-Sleep -Milliseconds 400
-    $p.Play()
-    while(-not $p.NaturalDuration.HasTimeSpan){Start-Sleep -Milliseconds 50}
-    Start-Sleep -Milliseconds ([int]$p.NaturalDuration.TimeSpan.TotalMilliseconds+300)
-    $p.Close()
-})
-$t.SetApartmentState([System.Threading.ApartmentState]::STA)
-$t.Start()
-$t.Join()`, uri, vol)
+	vbs := fmt.Sprintf(`Dim wmp
+Set wmp = CreateObject("WMPlayer.OCX.7")
+wmp.settings.volume = %d
+wmp.settings.mute = False
+wmp.URL = "%s"
+wmp.controls.play()
+WScript.Sleep 1000
+Do While wmp.playState = 3 Or wmp.playState = 6
+    WScript.Sleep 200
+Loop
+Set wmp = Nothing
+`, volume, strings.ReplaceAll(abs, `\`, `/`))
 
-	exec.Command("powershell", "-ep", "bypass", "-windowstyle", "hidden", "-command", ps).Run()
+	tmp, _ := os.CreateTemp("", "play*.vbs")
+	tmp.WriteString(vbs)
+	tmp.Close()
+
+	exec.Command("wscript", "/nologo", tmp.Name()).Run()
+	os.Remove(tmp.Name())
 	os.Remove(abs)
 }
 
