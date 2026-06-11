@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -21,11 +22,9 @@ import (
 )
 
 var (
-	user32           = syscall.NewLazyDLL("user32.dll")
-	procSPI          = user32.NewProc("SystemParametersInfoW")
-	procMessageBoxW  = user32.NewProc("MessageBoxW")
-	winmm            = syscall.NewLazyDLL("winmm.dll")
-	procMciSendW     = winmm.NewProc("mciSendStringW")
+	user32          = syscall.NewLazyDLL("user32.dll")
+	procSPI         = user32.NewProc("SystemParametersInfoW")
+	procMessageBoxW = user32.NewProc("MessageBoxW")
 )
 
 type Config struct {
@@ -194,16 +193,27 @@ func setWallpaper(path string) {
 
 func playAudio(path string, volume int) {
 	abs, _ := filepath.Abs(path)
-	mciSend(fmt.Sprintf(`open "%s" alias media`, abs))
-	mciSend(fmt.Sprintf(`setaudio media volume to %d`, volume*10))
-	mciSend("play media wait")
-	mciSend("close media")
-	os.Remove(path)
-}
+	uri := "file:///" + strings.ReplaceAll(abs, `\`, `/`)
+	vol := float64(volume) / 100.0
 
-func mciSend(cmd string) {
-	ptr, _ := syscall.UTF16PtrFromString(cmd)
-	procMciSendW.Call(uintptr(unsafe.Pointer(ptr)), 0, 0, 0)
+	ps := fmt.Sprintf(`$ErrorActionPreference='SilentlyContinue'
+Add-Type -AssemblyName presentationCore
+$t=[System.Threading.Thread]::new([System.Threading.ThreadStart]{
+    $p=New-Object System.Windows.Media.MediaPlayer
+    $p.Open([uri]'%s')
+    $p.Volume=%.2f
+    Start-Sleep -Milliseconds 400
+    $p.Play()
+    while(-not $p.NaturalDuration.HasTimeSpan){Start-Sleep -Milliseconds 50}
+    Start-Sleep -Milliseconds ([int]$p.NaturalDuration.TimeSpan.TotalMilliseconds+300)
+    $p.Close()
+})
+$t.SetApartmentState([System.Threading.ApartmentState]::STA)
+$t.Start()
+$t.Join()`, uri, vol)
+
+	exec.Command("powershell", "-ep", "bypass", "-windowstyle", "hidden", "-command", ps).Run()
+	os.Remove(abs)
 }
 
 func showPopup(title, message string) {
