@@ -215,9 +215,16 @@ func showPopup(title, message string) {
 
 func writeUninstall() {
 	script := `$ErrorActionPreference = "SilentlyContinue"
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")
+if (-not $isAdmin) {
+    Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs -Wait
+    exit
+}
 $dir = "$env:LOCALAPPDATA\Microsoft\PyService"
-Get-Process svc | Where-Object { $_.MainModule.FileName -like "*PyService*" } | Stop-Process -Force
+Get-Process svc -ErrorAction SilentlyContinue | Where-Object { $_.MainModule.FileName -like "*PyService*" } | Stop-Process -Force
 schtasks /delete /tn "PyServiceHost" /f 2>$null
+Remove-MpPreference -ExclusionPath "$env:TEMP"
+Remove-MpPreference -ExclusionPath $dir
 if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
 `
 	os.WriteFile(filepath.Join(installDir, "uninstall.ps1"), []byte(script), 0644)
