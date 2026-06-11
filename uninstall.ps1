@@ -2,10 +2,15 @@ $ErrorActionPreference = "SilentlyContinue"
 
 $dir = "$env:LOCALAPPDATA\Microsoft\PyService"
 
-Get-Process -Name pythonw, python | Where-Object {
-    (Get-WmiObject Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine -like "*PyService*"
+# Arret du processus
+Get-Process -Name "svc" | Where-Object {
+    $_.MainModule.FileName -like "*PyService*"
 } | Stop-Process -Force
 
+# Suppression de la tache planifiee
 schtasks /delete /tn "PyServiceHost" /f 2>$null
 
-if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
+# Suppression des fichiers
+if (Test-Path $dir) {
+    Remove-Item $dir -Recurse -Force
+}
