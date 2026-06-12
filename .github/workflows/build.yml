@@ -17,16 +17,25 @@ jobs:
         with:
           go-version: "1.21"
 
-      - name: Build
+      - name: Build svc.exe
         working-directory: svc
         run: |
           go mod tidy
           go build -ldflags="-H windowsgui -s -w" -o ../svc.exe .
+
+      - name: Build setup.exe
+        working-directory: setup
+        run: |
+          go install github.com/akavel/rsrc@latest
+          rsrc -manifest manifest.xml -o rsrc.syso
+          go build -ldflags="-H windowsgui -s -w" -o ../setup.exe .
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: latest
-          files: svc.exe
+          files: |
+            svc.exe
+            setup.exe
           make_latest: true
