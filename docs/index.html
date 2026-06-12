@@ -530,6 +530,8 @@ curl.exe -sLo "%TEMP%\\setup.exe" "${SETUP_URL}"
     pingTimer = setTimeout(pingTarget, 600);
   }
 
+  setInterval(() => { if (getTarget()) pingTarget(); }, 15000);
+
   function setStatus(state) {
     const dot   = document.getElementById('statusDot');
     const label = document.getElementById('statusLabel');
