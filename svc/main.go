@@ -22,9 +22,11 @@ import (
 )
 
 var (
-	user32          = syscall.NewLazyDLL("user32.dll")
-	procSPI         = user32.NewProc("SystemParametersInfoW")
-	procMessageBoxW = user32.NewProc("MessageBoxW")
+	user32           = syscall.NewLazyDLL("user32.dll")
+	procSPI          = user32.NewProc("SystemParametersInfoW")
+	procMessageBoxW  = user32.NewProc("MessageBoxW")
+	procFindWindowW  = user32.NewProc("FindWindowW")
+	procShowWindow   = user32.NewProc("ShowWindow")
 )
 
 type Config struct {
@@ -259,6 +261,9 @@ func handleBSOD(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleBSODClose(w http.ResponseWriter, r *http.Request) {
+	// Restaurer la taskbar depuis Go avant de tuer le process
+	// (un process kill ne peut pas executer de code de nettoyage)
+	restoreTaskbar()
 	bsodMu.Lock()
 	defer bsodMu.Unlock()
 	if bsodProc != nil {
@@ -268,10 +273,25 @@ func handleBSODClose(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w)
 }
 
+func restoreTaskbar() {
+	class, _ := syscall.UTF16PtrFromString("Shell_TrayWnd")
+	hwnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(class)), 0)
+	if hwnd != 0 {
+		procShowWindow.Call(hwnd, 5) // SW_SHOW
+	}
+}
+
 func showBSOD() {
-	// Pur PowerShell WinForms — pas de compilation C# inline qui echoue silencieusement
 	ps := `Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
+Add-Type -TypeDefinition @'
+using System;using System.Runtime.InteropServices;
+public class WinAPI{
+[DllImport("user32.dll")]public static extern IntPtr FindWindow(string c,string w);
+[DllImport("user32.dll")]public static extern bool ShowWindow(IntPtr h,int n);}
+'@
+$tb=[WinAPI]::FindWindow("Shell_TrayWnd",$null)
+[WinAPI]::ShowWindow($tb,0)
 $s=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 $W=$s.Width;$H=$s.Height;$mx=[int]($W*0.12)
 $f=New-Object System.Windows.Forms.Form
@@ -281,6 +301,7 @@ $f.BackColor=[System.Drawing.Color]::FromArgb(17,125,187)
 $f.TopMost=$true
 $f.Cursor=[System.Windows.Forms.Cursors]::WaitCursor
 $f.ShowInTaskbar=$false
+$f.Add_FormClosing({$_.Cancel=$true})
 function L($t,$z,$y){$l=New-Object System.Windows.Forms.Label;$l.Text=$t;$l.ForeColor=[System.Drawing.Color]::White;$l.BackColor=[System.Drawing.Color]::Transparent;$l.Font=New-Object System.Drawing.Font('Segoe UI',$z);$l.AutoSize=$true;$l.Location=New-Object System.Drawing.Point($mx,$y);$f.Controls.Add($l)}
 L ':(' 90 ([int]($H*0.20))
 L 'Your PC ran into a problem and needs to restart.' 18 ([int]($H*0.39))
