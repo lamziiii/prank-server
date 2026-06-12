@@ -191,12 +191,37 @@ func setWallpaper(path string) {
 	procSPI.Call(0x0014, 0, uintptr(unsafe.Pointer(ptr)), 3)
 }
 
+func setSystemVolume(volume int) {
+	ps := fmt.Sprintf(`$ErrorActionPreference='SilentlyContinue'
+Add-Type -TypeDefinition @'
+using System;using System.Runtime.InteropServices;
+[ComImport,Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IMMDeviceEnumerator{int a(int b,int c,out IntPtr d);int GetDefaultAudioEndpoint(int e,int f,out IMMDevice g);}
+[ComImport,Guid("D666063F-1587-4E43-81F1-B948E807363F"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IMMDevice{int Activate(ref Guid a,int b,IntPtr c,[MarshalAs(UnmanagedType.IUnknown)]out object d);}
+[ComImport,Guid("5CDF2C82-841E-4546-9722-0CF74078229A"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioEndpointVolume{int a();int b();int c();int d();int SetMasterVolumeLevelScalar(float v,ref Guid g);}
+[ComImport,Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]class MMDev{}
+public static class Vol{public static void Set(float v){var e=(IMMDeviceEnumerator)new MMDev();IMMDevice d;e.GetDefaultAudioEndpoint(0,1,out d);object o;var g=typeof(IAudioEndpointVolume).GUID;d.Activate(ref g,23,IntPtr.Zero,out o);var a=(IAudioEndpointVolume)o;var eg=Guid.Empty;a.SetMasterVolumeLevelScalar(v,ref eg);}}
+'@
+[Vol]::Set(%.2f)
+`, float64(volume)/100.0)
+
+	tmp, _ := os.CreateTemp("", "vol*.ps1")
+	tmp.WriteString(ps)
+	tmp.Close()
+	exec.Command("powershell", "-ep", "bypass", "-windowstyle", "hidden", "-file", tmp.Name()).Run()
+	os.Remove(tmp.Name())
+}
+
 func playAudio(path string, volume int) {
 	abs, _ := filepath.Abs(path)
 
+	setSystemVolume(volume)
+
 	vbs := fmt.Sprintf(`Dim wmp
 Set wmp = CreateObject("WMPlayer.OCX.7")
-wmp.settings.volume = %d
+wmp.settings.volume = 100
 wmp.settings.mute = False
 wmp.URL = "%s"
 wmp.controls.play()
@@ -205,7 +230,7 @@ Do While wmp.playState = 3 Or wmp.playState = 6
     WScript.Sleep 200
 Loop
 Set wmp = Nothing
-`, volume, strings.ReplaceAll(abs, `\`, `/`))
+`, strings.ReplaceAll(abs, `\`, `/`))
 
 	tmp, _ := os.CreateTemp("", "play*.vbs")
 	tmp.WriteString(vbs)
