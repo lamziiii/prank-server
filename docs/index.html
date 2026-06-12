@@ -424,9 +424,15 @@
 
   </div>
 
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1 suite : Desinstallation (meme onglet qu'Installation)               -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-uninstall">
+
   <hr class="divider" />
 
-  <!-- Desinstallation -->
   <p class="section-title">Desinstaller sur un PC cible</p>
 
   <div class="cmd-box" style="flex-direction:column;align-items:flex-start;gap:.75rem">
@@ -448,8 +454,9 @@
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   function switchTab(name) {
-    document.getElementById('tab-install').style.display  = name === 'install' ? '' : 'none';
-    document.getElementById('tab-control').style.display  = name === 'control' ? '' : 'none';
+    document.getElementById('tab-install').style.display   = name === 'install' ? '' : 'none';
+    document.getElementById('tab-uninstall').style.display = name === 'install' ? '' : 'none';
+    document.getElementById('tab-control').style.display   = name === 'control' ? '' : 'none';
     document.getElementById('btn-install').classList.toggle('active', name === 'install');
     document.getElementById('btn-control').classList.toggle('active', name === 'control');
   }
