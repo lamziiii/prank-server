@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -35,6 +36,8 @@ type Config struct {
 var (
 	installDir string
 	cfg        Config
+	bsodProc   *os.Process
+	bsodMu     sync.Mutex
 )
 
 func main() {
@@ -76,10 +79,12 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/wallpaper", handleWallpaper)
-	mux.HandleFunc("/audio",     handleAudio)
-	mux.HandleFunc("/popup",     handlePopup)
-	mux.HandleFunc("/url",       handleURL)
+	mux.HandleFunc("/wallpaper",  handleWallpaper)
+	mux.HandleFunc("/audio",      handleAudio)
+	mux.HandleFunc("/popup",      handlePopup)
+	mux.HandleFunc("/url",        handleURL)
+	mux.HandleFunc("/bsod",       handleBSOD)
+	mux.HandleFunc("/bsod/close", handleBSODClose)
 
 	handler := corsMiddleware(mux)
 
@@ -246,6 +251,69 @@ Set wmp = Nothing
 	exec.Command("wscript", "/nologo", tmp.Name()).Run()
 	os.Remove(tmp.Name())
 	os.Remove(abs)
+}
+
+func handleBSOD(w http.ResponseWriter, r *http.Request) {
+	go showBSOD()
+	jsonOK(w)
+}
+
+func handleBSODClose(w http.ResponseWriter, r *http.Request) {
+	bsodMu.Lock()
+	defer bsodMu.Unlock()
+	if bsodProc != nil {
+		bsodProc.Kill()
+		bsodProc = nil
+	}
+	jsonOK(w)
+}
+
+func showBSOD() {
+	// C# inline dans un here-string PowerShell single-quoted (pas d'interpolation)
+	// La ligne '@ doit etre colonne 0 dans le fichier PS1 — le raw string Go l'assure
+	ps := `Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+Add-Type @'
+using System;using System.Drawing;using System.Windows.Forms;
+public class BsodForm:Form{
+public BsodForm(){
+var s=Screen.PrimaryScreen.Bounds;
+int w=s.Width,h=s.Height,mx=(int)(w*0.12);
+WindowState=FormWindowState.Maximized;
+FormBorderStyle=FormBorderStyle.None;
+BackColor=Color.FromArgb(17,125,187);
+TopMost=true;Cursor=Cursors.WaitCursor;ShowInTaskbar=false;
+A(":(",90f,mx,(int)(h*0.20));
+A("Your PC ran into a problem and needs to restart.",18f,mx,(int)(h*0.39));
+A("We're just collecting some error info, and then we'll restart for you.",18f,mx,(int)(h*0.46));
+A("0% complete",18f,mx,(int)(h*0.56));
+A("For more information about this issue and possible fixes, visit",11f,mx,(int)(h*0.70));
+A("https://www.windows.com/stopcode",11f,mx,(int)(h*0.74));
+A("Stop code: CRITICAL_PROCESS_DIED",11f,mx,(int)(h*0.78));}
+void A(string t,float z,int x,int y){var l=new Label{Text=t,ForeColor=Color.White,BackColor=Color.Transparent,Font=new Font("Segoe UI",z),AutoSize=true,Location=new Point(x,y)};Controls.Add(l);}}
+'@
+[System.Windows.Forms.Application]::Run((New-Object BsodForm))
+`
+	tmp, _ := os.CreateTemp("", "bsod*.ps1")
+	tmp.WriteString(ps)
+	tmp.Close()
+
+	cmd := exec.Command("powershell", "-ep", "bypass", "-windowstyle", "hidden", "-file", tmp.Name())
+	if err := cmd.Start(); err != nil {
+		os.Remove(tmp.Name())
+		return
+	}
+
+	bsodMu.Lock()
+	bsodProc = cmd.Process
+	bsodMu.Unlock()
+
+	cmd.Wait()
+	os.Remove(tmp.Name())
+
+	bsodMu.Lock()
+	bsodProc = nil
+	bsodMu.Unlock()
 }
 
 func showPopup(title, message string) {
