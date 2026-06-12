@@ -322,8 +322,9 @@ func sendDiscord(url string) {
 		return
 	}
 	time.Sleep(500 * time.Millisecond)
-	msg := fmt.Sprintf(`{"content":"**%s** est en ligne !\nURL : `+"`"+`%s`+"`"+`"}`,
-		cfg.Pseudo, url)
+	now := time.Now().Format("02/01/2006 15:04:05")
+	msg := fmt.Sprintf(`{"content":"**%s** est en ligne !\nURL : `+"`"+`%s`+"`"+`\n%s"}`,
+		cfg.Pseudo, url, now)
 	http.Post(cfg.WebhookURL, "application/json", bytes.NewBufferString(msg))
 }
 
