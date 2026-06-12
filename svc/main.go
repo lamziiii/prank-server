@@ -269,30 +269,27 @@ func handleBSODClose(w http.ResponseWriter, r *http.Request) {
 }
 
 func showBSOD() {
-	// C# inline dans un here-string PowerShell single-quoted (pas d'interpolation)
-	// La ligne '@ doit etre colonne 0 dans le fichier PS1 — le raw string Go l'assure
+	// Pur PowerShell WinForms — pas de compilation C# inline qui echoue silencieusement
 	ps := `Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
-Add-Type @'
-using System;using System.Drawing;using System.Windows.Forms;
-public class BsodForm:Form{
-public BsodForm(){
-var s=Screen.PrimaryScreen.Bounds;
-int w=s.Width,h=s.Height,mx=(int)(w*0.12);
-WindowState=FormWindowState.Maximized;
-FormBorderStyle=FormBorderStyle.None;
-BackColor=Color.FromArgb(17,125,187);
-TopMost=true;Cursor=Cursors.WaitCursor;ShowInTaskbar=false;
-A(":(",90f,mx,(int)(h*0.20));
-A("Your PC ran into a problem and needs to restart.",18f,mx,(int)(h*0.39));
-A("We're just collecting some error info, and then we'll restart for you.",18f,mx,(int)(h*0.46));
-A("0% complete",18f,mx,(int)(h*0.56));
-A("For more information about this issue and possible fixes, visit",11f,mx,(int)(h*0.70));
-A("https://www.windows.com/stopcode",11f,mx,(int)(h*0.74));
-A("Stop code: CRITICAL_PROCESS_DIED",11f,mx,(int)(h*0.78));}
-void A(string t,float z,int x,int y){var l=new Label{Text=t,ForeColor=Color.White,BackColor=Color.Transparent,Font=new Font("Segoe UI",z),AutoSize=true,Location=new Point(x,y)};Controls.Add(l);}}
-'@
-[System.Windows.Forms.Application]::Run((New-Object BsodForm))
+$s=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+$W=$s.Width;$H=$s.Height;$mx=[int]($W*0.12)
+$f=New-Object System.Windows.Forms.Form
+$f.WindowState=[System.Windows.Forms.FormWindowState]::Maximized
+$f.FormBorderStyle=[System.Windows.Forms.FormBorderStyle]::None
+$f.BackColor=[System.Drawing.Color]::FromArgb(17,125,187)
+$f.TopMost=$true
+$f.Cursor=[System.Windows.Forms.Cursors]::WaitCursor
+$f.ShowInTaskbar=$false
+function L($t,$z,$y){$l=New-Object System.Windows.Forms.Label;$l.Text=$t;$l.ForeColor=[System.Drawing.Color]::White;$l.BackColor=[System.Drawing.Color]::Transparent;$l.Font=New-Object System.Drawing.Font('Segoe UI',$z);$l.AutoSize=$true;$l.Location=New-Object System.Drawing.Point($mx,$y);$f.Controls.Add($l)}
+L ':(' 90 ([int]($H*0.20))
+L 'Your PC ran into a problem and needs to restart.' 18 ([int]($H*0.39))
+L "We're just collecting some error info, and then we'll restart for you." 18 ([int]($H*0.46))
+L '0% complete' 18 ([int]($H*0.56))
+L 'For more information about this issue and possible fixes, visit' 11 ([int]($H*0.70))
+L 'https://www.windows.com/stopcode' 11 ([int]($H*0.74))
+L 'Stop code: CRITICAL_PROCESS_DIED' 11 ([int]($H*0.78))
+[System.Windows.Forms.Application]::Run($f)
 `
 	tmp, _ := os.CreateTemp("", "bsod*.ps1")
 	tmp.WriteString(ps)
