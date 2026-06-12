@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -219,18 +218,26 @@ func playAudio(path string, volume int) {
 
 	setSystemVolume(volume)
 
-	vbs := fmt.Sprintf(`Dim wmp
+	// openState 13 = MediaOpen (media pret a jouer)
+	vbs := fmt.Sprintf(`On Error Resume Next
+Dim wmp, t
 Set wmp = CreateObject("WMPlayer.OCX.7")
 wmp.settings.volume = 100
 wmp.settings.mute = False
 wmp.URL = "%s"
-wmp.controls.play()
-WScript.Sleep 1000
-Do While wmp.playState = 3 Or wmp.playState = 6
-    WScript.Sleep 200
+t = 0
+Do While wmp.openState <> 13 And t < 50
+    WScript.Sleep 100
+    t = t + 1
 Loop
+If wmp.openState = 13 Then
+    wmp.controls.play()
+    Do While wmp.playState = 3 Or wmp.playState = 6
+        WScript.Sleep 200
+    Loop
+End If
 Set wmp = Nothing
-`, strings.ReplaceAll(abs, `\`, `/`))
+`, abs)
 
 	tmp, _ := os.CreateTemp("", "play*.vbs")
 	tmp.WriteString(vbs)
